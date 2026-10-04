@@ -4,20 +4,22 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
-RUN npm run build
+RUN npm run build:all
 
 # --- Build Stage Backend ---
-FROM rust:1.80-slim-bullseye AS backend-builder
+FROM rust:slim-bookworm AS backend-builder
 WORKDIR /app/backend
 RUN apt-get update && apt-get install -y pkg-config libssl-dev gcc && rm -rf /var/lib/apt/lists/*
 COPY backend/Cargo.* ./
 # Pre-build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
+RUN mkdir src && echo "pub fn dummy() {}" > src/lib.rs && echo "fn main() {}" > src/main.rs \
+    && cargo build --release --bin oxid \
+    && rm -rf src
 COPY backend/ ./
-RUN cargo build --release
+RUN touch src/lib.rs src/main.rs && cargo build --release --bin oxid
 
 # --- Final Lightweight Runtime Image (< 60MB) ---
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \

@@ -18,6 +18,8 @@
   <img src="https://img.shields.io/badge/Docker_Image-<60_MB-informational.svg?logo=docker" alt="Docker Image">
 </p>
 
+> 🚀 **Démarrage Rapide en 2 minutes :** Consultez notre [**Guide Quickstart (Docker, Compose & Local)**](./docs/QUICKSTART.md) pour lancer Oxid immédiatement.
+
 ---
 
 ## 📸 Modes de Lecture & Mises en Page (Layouts)
