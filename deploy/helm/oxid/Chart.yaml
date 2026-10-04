@@ -2,8 +2,8 @@ apiVersion: v2
 name: oxid
 description: Ultra-lightweight, high-performance open source document viewer and rendition cluster
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.1
+appVersion: "0.1.1"
 license: MIT
 keywords:
   - document-viewer

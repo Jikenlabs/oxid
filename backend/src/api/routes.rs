@@ -103,7 +103,7 @@ async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
         "status": "ok",
         "node_id": state.config.node_id,
         "engine": "Oxid",
-        "version": "0.1.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "architecture": "Rust + Tokio + Axum",
         "cluster_mode": if state.config.redis_url.is_some() { "redis_distributed" } else { "shared_storage" },
         "connectors": ["filesystem", "s3", "cmis", "url"]
@@ -1389,7 +1389,7 @@ async fn convert_document_oneshot(
         .header("X-RateLimit-Limit", quota_info.limit.to_string())
         .header("X-RateLimit-Remaining", quota_info.remaining.to_string())
         .header("X-RateLimit-Reset", quota_info.reset_epoch_secs.to_string())
-        .header("X-Converted-By", "Oxid-Converter/0.1.0")
+        .header("X-Converted-By", concat!("Oxid-Converter/", env!("CARGO_PKG_VERSION")))
         .body(Body::from(final_pdf_bytes))
         .unwrap())
 }
