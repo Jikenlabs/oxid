@@ -177,11 +177,47 @@ Retrouvez les guides détaillés dans le dossier [`docs/`](docs/) :
 
 ## 🛠️ Démarrage Rapide
 
-### Avec Docker Compose
+### Avec Docker Compose (Recommandé)
+
+Créez un fichier `docker-compose.yml` :
+```yaml
+version: '3.8'
+
+services:
+  oxid:
+    image: ghcr.io/jikenlabs/oxid:0.2.0
+    container_name: oxid
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=hybrid
+      - OXID_GOTENBERG_URL=http://gotenberg:3000
+    volumes:
+      - oxid_data:/data
+    depends_on:
+      - gotenberg
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - oxid_data:/data
+
+volumes:
+  oxid_data:
+```
+
+Lancez avec :
 ```bash
 docker compose up -d
 ```
-L'application est disponible immédiatement sur `http://localhost:8080`.
+L'application est disponible immédiatement sur `http://localhost:8080` (et la démo sur `http://localhost:8080/demo-component.html`).
 
 ### En Local (Développement)
 ```bash

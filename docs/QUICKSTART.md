@@ -24,27 +24,69 @@ docker run -d \
 
 ---
 
-## 🐳 Option 2 : Déploiement avec Docker Compose (Multi-Profils)
+## 🐳 Option 2 : Déploiement avec Docker Compose (Recommandé)
 
-Oxid fournit un fichier `docker-compose.yml` préconfiguré avec 3 profils d'exécution selon vos exigences de ressources et de fidélité documentaire :
+Pour disposer de la visionneuse avec support complet de tous les formats (y compris RTF, vieux Office et documents complexes) :
 
-### Profil A : Ultra-léger autonome (Zéro conteneur externe, RAM < 128 Mo)
-Utilise le moteur natif Typst en Rust pour convertir les documents Office sans LibreOffice :
-```bash
-docker compose --profile office2pdf up -d
+### Fichier `docker-compose.yml` minimal :
+
+```yaml
+version: '3.8'
+
+services:
+  oxid:
+    image: ghcr.io/jikenlabs/oxid:0.2.0
+    container_name: oxid
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=hybrid
+      - OXID_GOTENBERG_URL=http://gotenberg:3000
+    volumes:
+      - oxid_data:/data
+    depends_on:
+      - gotenberg
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - oxid_data:/data
+
+volumes:
+  oxid_data:
 ```
 
-### Profil B : Fidélité Office 100% (Gotenberg / LibreOffice pur)
-Pour une restitution graphique identique au pixel près sur les macros et polices complexes :
+Lancer l'environnement :
 ```bash
-docker compose --profile gotenberg up -d
+docker compose up -d
 ```
+L'interface de la visionneuse est immédiatement accessible sur [http://localhost:8080](http://localhost:8080) (et la page de démo sur [http://localhost:8080/demo-component.html](http://localhost:8080/demo-component.html)).
 
-### Profil C : Hybride Haute Performance (Recommandé en Production)
-Convertit à la vitesse de l'éclair les documents standards via Rust, et bascule automatiquement sur Gotenberg pour les documents complexes :
-```bash
-docker compose --profile hybrid up -d
-```
+---
+
+### Profils alternatifs disponibles dans le dépôt :
+
+Si vous utilisez le fichier `docker-compose.yml` complet fourni à la racine du dépôt :
+
+* **Profil A (Ultra-léger autonome, RAM < 128 Mo)** :
+  ```bash
+  docker compose --profile office2pdf up -d
+  ```
+* **Profil B (Fidélité Office 100% via LibreOffice pur)** :
+  ```bash
+  docker compose --profile gotenberg up -d
+  ```
+* **Profil C (Hybride Haute Performance)** :
+  ```bash
+  docker compose --profile hybrid up -d
+  ```
 
 ---
 
