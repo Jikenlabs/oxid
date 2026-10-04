@@ -112,7 +112,7 @@ curl -X POST "http://localhost:8080/api/convert?watermark=CONFIDENTIEL%20PRO" \
 - **En-têtes HTTP Standards** : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.
 - **Mode Éphémère (Zero-Retention)** : Suppression physique immédiate des fichiers temporaires après streaming (Conformité RGPD / Secret Professionnel).
 
-Consultez la [Spécification Complète de l'API de Conversion](docs/CONVERSION_API.md).
+Consultez la [Spécification Complète de l'API de Conversion](docs/CONVERSION_API.md) et la [Configuration des Clés API](docs/QUICKSTART.md#--configuration-des-clés-api--sécurisation-api-keys--quotas).
 
 ---
 

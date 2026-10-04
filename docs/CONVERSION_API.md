@@ -18,29 +18,73 @@ L'API de conversion permet aux développeurs et éditeurs d'intégrer une brique
 
 ---
 
-## 🔐 Authentification & Quotas
+## 🔐 Authentification & Gestion des Clés API
 
-L'accès à l'API de conversion est sécurisé par clé API via l'un des deux en-têtes HTTP suivants :
+Oxid intègre un gestionnaire natif de clés API avec contrôle de quota horaire (Rate Limiting) par clé, opérant soit en mémoire vive (standalone), soit synchronisé via Redis / Valkey (haute disponibilité / cluster multi-nœuds).
+
+### 1. Configuration Serveur des Clés API
+
+Les clés autorisées et leurs quotas horaires sont configurés via les variables d'environnement suivantes :
+
+| Variable d'environnement | Obligatoire | Valeur par défaut | Description |
+| :--- | :--- | :--- | :--- |
+| `OXID_API_KEYS` | Non | *(vide)* | Liste des clés API et de leur quota horaire au format `clé:quota,clé:quota`. Si le quota est omis, la valeur par défaut est de 1 000 requêtes / heure. |
+| `OXID_AUTH_REQUIRED` | Non | `false` (ou `true` si `OXID_API_KEYS` est défini) | Exige impérativement une clé API valide. Si `false` et sans clé fournie, l'accès anonyme est autorisé avec un quota par défaut. |
+| `OXID_REDIS_URL` | Non | *(vide)* | URL de connexion Redis/Valkey (`redis://valkey:6379`) pour synchroniser les quotas d'API keys entre plusieurs instances d'Oxid. |
+
+#### Exemples de configuration serveur :
+
+**Via Docker CLI :**
+```bash
+docker run -d \
+  --name oxid \
+  -p 8080:8080 \
+  -e OXID_AUTH_REQUIRED=true \
+  -e OXID_API_KEYS="token_crm_prod:10000,token_ged_alfresco:50000,token_dev_test:1000" \
+  ghcr.io/jikenlabs/oxid:latest
+```
+
+**Via Docker Compose (`docker-compose.yml`) :**
+```yaml
+services:
+  oxid:
+    image: ghcr.io/jikenlabs/oxid:latest
+    environment:
+      - OXID_AUTH_REQUIRED=true
+      - OXID_API_KEYS=sk_live_app1:5000,sk_live_app2:20000
+      - OXID_REDIS_URL=redis://valkey:6379
+```
+
+---
+
+### 2. Transmission de la Clé API Côté Client
+
+Pour chaque requête adressée aux endpoints protégés (`/api/convert`, `/v1/convert`, etc.), la clé API peut être transmise via l'un des deux en-têtes HTTP suivants :
 
 ```http
-X-API-Key: votre_cle_api_secrete
+X-API-Key: sk_live_app1
 ```
-*ou*
+*ou via le standard OAuth2 / Bearer :*
 ```http
-Authorization: Bearer votre_cle_api_secrete
+Authorization: Bearer sk_live_app1
 ```
 
-### En-têtes HTTP de Quota renvoyés
-Chaque réponse d'Oxid inclut les métadonnées de consommation en temps réel (gérées par Redis en cluster distribué ou mémoire locale) :
+---
+
+### 3. En-têtes HTTP de Quotas & Rate Limiting renvoyés
+
+Chaque réponse d'Oxid inclut les métadonnées de consommation en temps réel :
 
 | En-tête | Type | Description |
 | :--- | :--- | :--- |
-| `X-RateLimit-Limit` | Entier | Quota d'appels autorisés par fenêtre horaire (ex: `1000`) |
-| `X-RateLimit-Remaining` | Entier | Nombre de conversions restantes dans la fenêtre courante |
-| `X-RateLimit-Reset` | Timestamp | Timestamp Unix (secondes) de réinitialisation du compteur |
-| `X-Converted-By` | Chaîne | Signature du moteur (`Oxid-Converter/0.1.0`) |
+| `X-RateLimit-Limit` | Entier | Quota d'appels autorisés par fenêtre horaire (ex: `5000`) |
+| `X-RateLimit-Remaining` | Entier | Nombre d'appels restants dans la fenêtre courante de 1 heure |
+| `X-RateLimit-Reset` | Timestamp | Timestamp Unix (secondes) de réinitialisation du compteur horaire |
+| `X-Converted-By` | Chaîne | Signature et version du moteur (`Oxid-Converter/0.1.1`) |
 
-En cas de dépassement du quota alloué, l'API répond immédiatement avec le code `HTTP 429 Too Many Requests`.
+> ⚠️ **Dépassement de Quota ou Clé Invalide** :
+> - En cas de clé absente ou inconnue (si auth requise) : `HTTP 401 Unauthorized`.
+> - En cas de dépassement du quota horaire : `HTTP 429 Too Many Requests` avec message JSON détaillant le temps restant avant réinitialisation.
 
 ---
 
