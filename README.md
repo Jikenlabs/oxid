@@ -12,10 +12,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Language-Rust_1.80+-orange.svg?logo=rust" alt="Rust">
   <img src="https://img.shields.io/badge/Frontend-TypeScript_%26_WebComponent-blue.svg?logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Throughput-333k_req%2Fs-success.svg" alt="Throughput">
-  <img src="https://img.shields.io/badge/Memory_Idle-42_MB-brightgreen.svg" alt="RAM Idle">
+  <img src="https://img.shields.io/badge/Throughput-5.3k+_pages%2Fs_(1_GbE_Wire_Speed)-success.svg" alt="Throughput">
+  <img src="https://img.shields.io/badge/p99_Latency-<18_ms-blue.svg" alt="p99 Latency">
+  <img src="https://img.shields.io/badge/RAM_Under_Load-<30_MB-brightgreen.svg" alt="RAM Under Load">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License MIT">
-  <img src="https://img.shields.io/badge/Docker_Image-<60_MB-informational.svg?logo=docker" alt="Docker Image">
 </p>
 
 > 🚀 **Démarrage Rapide en 2 minutes :** Consultez notre [**Guide Quickstart (Docker, Compose & Local)**](./docs/QUICKSTART.md) pour lancer Oxid immédiatement.
@@ -77,14 +77,21 @@ Oxid intègre un pipeline de conversion et de rendu capable de traiter nativemen
 
 ## ⚡ Performances & Métriques Clés
 
-Mesures certifiées sur un serveur Linux standard (24 cœurs physiques / 64 Go RAM) :
+Oxid est conçu pour offrir une réactivité maximale tout en réduisant drastiquement l'empreinte infrastructure. 
 
-- 🏎️ **Débit de la Passerelle API** : **333 291 requêtes / seconde** (latence médiane 1.12 ms).
-- 🖼️ **Débit de Rendu d'Images (Cache L1/L2)** : **96 541 pages / seconde** (5,46 Go/s de bande passante).
-- ⚙️ **Rendu Vectoriel Pur (Zéro Cache, 100% CPU)** : **181,0 pages physiques / seconde**.
-- 🍃 **Empreinte Mémoire RAM** : **42,5 Mo au repos**, moins de 200 Mo sous une charge de 7 millions de requêtes.
-- ⏱️ **Démarrage à Froid** : **< 35 millisecondes**.
-- 📦 **Taille du Binaire / Conteneur** : **~55 Mo** (Image Docker unique autonome, sans dépendances lourdes).
+### 🌐 Résultats Certifiés en Réseau Réel (Campagne v0.1.1 — Liaison Physique 1 GbE) :
+
+Mesures exécutées à travers un réseau commuté physique entre 2 machines distinctes sous plus de **1,5 million de requêtes réelles** :
+
+- 🌐 **Saturation Physique 1 GbE à 100%** : **111 Mo/s continus** de documents utiles transférés (~888 Mbps utiles). Le câble réseau physique est le premier facteur limitant.
+- 🏎️ **Débit Utile Réseau (Mixte Production)** : **5 300+ req / seconde** maintenues en flux continu (100% de succès, 0 socket drop).
+- ⏱️ **Latence de Queue ($p99$) Maîtrisée** : **$p50 = 7,1\text{ ms}$**, **$p99 = 17,8\text{ ms}$** sous charge soutenue (ratio $p99/p50 < 2,5\times$, distribution quasi-plate).
+- 🍃 **Empreinte Mémoire ($VmRSS$)** : **27,3 Mo de RAM seulement** sous charge continue (> 1 million de requêtes traitées sans aucune fuite ni pause Garbage Collector).
+- 🛡️ **Haute Disponibilité & Résilience Cluster** : Bascule automatique en **$< 1\text{ ms}$** et 0 erreur HTTP lors du crash brutal d'un nœud en plein pic de charge.
+- 💡 **Sobriété FinOps** : **$< 1\text{ vCPU}$** requis pour saturer un lien 1 GbE. Des pods Kubernetes de **256 Mo de RAM / 1 vCPU** suffisent à absorber le pic documentaire d'une administration ou d'un grand compte.
+- 📦 **Taille du Binaire / Conteneur** : **~7 Mo natif / ~55 Mo image Docker** (autonome, sans runtime lourd).
+
+> 📊 *Pour les courbes de distribution, la télémétrie seconde par seconde et la méthodologie complète sans omission coordonnée, consultez le [**Rapport Officiel de Benchmark Réseau (v0.1.1)**](docs/RAPPORT_BENCHMARK_OFFICIEL_V0.1.1.md) et le [**Protocole de Benchmark**](docs/PROTOCOLE_BENCHMARK.md).*
 
 ---
 
