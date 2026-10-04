@@ -158,8 +158,9 @@ Retrouvez les guides détaillés dans le dossier [`docs/`](docs/) :
 - 💾 **[Modèle de Données (MCD / MLD)](docs/architecture/MODELE_DONNEES.md)** : Entités, relations, XFDF et structures Redis.
 - 🔄 **[Diagrammes de Flux & Séquences](docs/architecture/DIAGRAMMES_FLUX_ET_SEQUENCES.md)** : Ingestion, streaming vidéo, calques CAO et biffure physique.
 - 🛡️ **[Architecture de Sécurité & Conformité](docs/architecture/ARCHITECTURE_SECURITE_ET_CONFORMITE.md)** : Zero-Trust, biffure définitive, masquage PII et RGPD.
-- ☸️ **[Modèle de Déploiement & Scalabilité](docs/architecture/MODELE_DEPLOIEMENT_ET_SCALABILITE.md)** : Déploiement Kubernetes multi-zones et autoscaling HPA.
-- ⚡ **[Rapport Officiel de Benchmark](docs/BENCHMARK_PERFORMANCES.md)** : Mesures et charges certifiées.
+- ⚡ **[Rapport Officiel de Benchmark Réseau (v0.1.1)](docs/RAPPORT_BENCHMARK_OFFICIEL_V0.1.1.md)** : Campagne certifiée entre 2 machines, saturation 1 GbE et télémétrie continue.
+- 🎯 **[Protocole de Benchmark & Métrologie](docs/PROTOCOLE_BENCHMARK.md)** : Méthodologie standardisée exempte d'omission coordonnée.
+- 📜 **[Rapport de Benchmark Initial (v0.1.0)](docs/BENCHMARK_PERFORMANCES.md)** : Mesures initiales sur boucle locale.
 - 🚀 **[API de Conversion Autonome](docs/CONVERSION_API.md)** : Guide d'intégration, quotas et SDK cURL/Node/Python.
 - 📘 **[Documentation Technique](docs/DOCUMENTATION_TECHNIQUE.md)** : Spécification complète des API REST.
 - 📕 **[Documentation Fonctionnelle](docs/DOCUMENTATION_FONCTIONNELLE.md)** : Guide exhaustif des fonctionnalités métier.

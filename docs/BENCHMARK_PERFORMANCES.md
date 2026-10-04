@@ -1,6 +1,13 @@
 # ⚡ Rapport Officiel de Benchmark & Stress-Test — Oxid
 
-Ce document présente les résultats exhaustifs et certifiés des tests de charge, de saturation et de limites physiques réalisés sur un nœud de production **Oxid**.
+Ce document présente les résultats initiaux (v0.1.0) des tests de charge sur boucle locale.
+
+> [!IMPORTANT]
+> **Campagne Réseau v0.1.1 Certifiée Disponible :**
+> Pour consulter les mesures en conditions réelles de production (liaison réseau 1 GbE commutée entre deux postes distincts, télémétrie continue du processus, résolution de la latence au p99 et tests d'ingestion/conversion), veuillez consulter :
+> - 📊 [**Rapport Officiel de Benchmark Réseau (v0.1.1)**](RAPPORT_BENCHMARK_OFFICIEL_V0.1.1.md)
+> - 🎯 [**Protocole Officiel de Benchmark & Métrologie**](PROTOCOLE_BENCHMARK.md)
+
 
 ---
 
