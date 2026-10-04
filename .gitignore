@@ -33,3 +33,8 @@
 !test_files/
 !test_files/**
 
+# Benchmark telemetry and test output data
+bench/*.csv
+*.csv
+
+
