@@ -196,3 +196,40 @@ Durant l'intégralité du tir de **1 062 126 requêtes**, le processus `oxid` (s
    Même sous 100 connexions concurrentes actives et 110 Mo/s de débit pendant 2 minutes consécutives, la latence médiane reste à **19 ms** et le $p99$ ne dépasse pas **43 ms** (contre 685 ms dans le premier benchmark).
 3. **Une étanchéité mémoire absolue** :
    Passer de 8 Mo à 27 Mo après avoir mouliné **1 million de requêtes** démontre la robustesse de l'allocateur mémoire et du modèle d'ownership de Rust. Aucune JVM ni runtime à garbage collector ne peut rivaliser avec une telle compacité.
+
+---
+
+## 7. Épreuve de Résilience & Failover en Cluster Multi-Nœuds (Chaos Test)
+
+Pour valider l'architecture haute disponibilité d'Oxid sous charge, un cluster actif/actif à 2 nœuds a été déployé avec un Load Balancer frontal NGINX (`least_conn`) :
+* **Nœud 1** (`oxid-node-1`) : `127.0.0.1:8081`
+* **Nœud 2** (`oxid-node-2`) : `127.0.0.1:8083`
+* **Point d'accès cluster** : `http://192.168.2.142:8080` (Load Balancer NGINX frontal)
+
+### 7.1. Test de Répartition de Charge Nominale (Mixte 50 workers, 60s)
+* **Requêtes servies** : **318 679 requêtes** (100% succès, 0 erreur).
+* **Débit moyen** : **5 310,25 req/s**.
+* **Bande passante** : **109,85 Mo/s** (6,59 Go transférés).
+* **Latences** : $p50 = 7,41\text{ ms}$, **$p99 = 26,86\text{ ms}$**.
+* **Comportement** : Équilibrage parfait à 50/50 des requêtes entre `oxid-node-1` et `oxid-node-2` tracé via l'en-tête HTTP `X-Served-By-Node`.
+
+---
+
+### 7.2. Le Crash-Test en Direct : Arrêt Brutal d'un Nœud sous 60 Workers
+Pendant un tir continu de **60 connexions persistantes concurrentes** saturant la bande passante Gigabit à **110,5 Mo/s**, le **Nœud 2 a été tué brutalement (`kill -9`)** à la 30e seconde de l'épreuve.
+
+```text
+=== RÉSULTATS DU CRASH-TEST DE HAUTE DISPONIBILITÉ (tonio@xerus) ===
+  * Requêtes totales servies : 261 017 requêtes
+  * Taux de succès HTTP      : 100,00 % (261 017 succès, 0 ERREUR)
+  * Débit moyen              : 4 346,50 req/s
+  * Bande passante continue  : 110,53 Mo/s (6,64 Go transférés)
+  * Latence p50              : 13,07 ms
+  * Latence p99              : 31,32 ms
+  * Détection télémétrique   : Nœuds actifs passés de 2 à 1 en direct
+```
+
+### 7.3. Analyse de la Résilience
+1. **Zéro interruption pour le client** : Dès l'interruption soudaine du Nœud 2, le Load Balancer a immédiatement rejoué les requêtes en vol vers le Nœud 1. Le client n'a reçu **aucun code HTTP 502/503/504**.
+2. **Cohérence totale du Cache L2 partagé** : Le Nœud 1 survivant a continué à puiser dans le cache partagé `./data/cache` sans interruption ni surcoût CPU de régénération des tuiles déjà rendues.
+3. **Maintien du plafond réseau 1 GbE** : Même avec un seul nœud actif sur les deux, le débit utile est resté cloué à **110,5 Mo/s**, démontrant qu'un seul nœud suffit à saturer l'infrastructure réseau physique.

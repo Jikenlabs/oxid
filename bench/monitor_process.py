@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Oxid Process & System Telemetry Monitor
-Surveille en temps réel l'état du processus Oxid pendant un stress-test réseau :
-- Consommation CPU (% utilisateur et noyau)
+Oxid Process & Cluster System Telemetry Monitor
+Surveille en temps réel un ou plusieurs nœuds Oxid (Cluster) pendant un stress-test réseau :
+- Consommation CPU cumulée (% utilisateur et noyau par nœud et total)
 - Mémoire vive : VmRSS, VmPeak, VmHWM
 - Descripteurs de fichiers ouverts (FDs)
-- Sockets TCP actives (ESTABLISHED, TIME_WAIT)
-- Changements de contexte (volontaires / involontaires)
+- Sockets TCP actives (ESTABLISHED, TIME_WAIT sur les ports 8080, 8081, 8083)
 Génère une télémétrie continue à l'écran et exporte les métriques dans un fichier CSV.
 """
 
@@ -27,23 +26,20 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 
-def find_oxid_pid() -> int:
+def find_oxid_pids() -> list[int]:
+    pids = []
     try:
         out = subprocess.check_output(["pgrep", "-f", "target/release/oxid"]).decode().strip()
-        lines = out.split()
-        if lines:
-            return int(lines[0])
+        for p in out.split():
+            try:
+                p_int = int(p)
+                if p_int not in pids and p_int != os.getpid():
+                    pids.append(p_int)
+            except ValueError:
+                pass
     except Exception:
         pass
-    try:
-        out = subprocess.check_output(["pgrep", "-f", "oxid"]).decode().strip()
-        for pid in out.split():
-            cmdline = open(f"/proc/{pid}/cmdline", "r").read()
-            if "target/release/oxid" in cmdline or "oxid" in cmdline:
-                return int(pid)
-    except Exception:
-        pass
-    return 0
+    return sorted(pids)
 
 
 def read_proc_status(pid: int) -> dict:
@@ -67,7 +63,6 @@ def read_proc_stat(pid: int):
         return 0, 0
     with open(path, "r") as f:
         parts = f.read().split()
-        # utime = parts[13], stime = parts[14]
         if len(parts) >= 15:
             return int(parts[13]), int(parts[14])
     return 0, 0
@@ -81,11 +76,12 @@ def count_open_fds(pid: int) -> int:
         return 0
 
 
-def count_tcp_sockets(port: int = 8080):
+def count_tcp_sockets(ports: list[int] = [8080, 8081, 8083]):
     established = 0
     time_wait = 0
     try:
-        out = subprocess.check_output(["ss", "-t", "-a", f"sport = :{port}"], stderr=subprocess.DEVNULL).decode()
+        port_filter = " or ".join([f"sport = :{p}" for p in ports])
+        out = subprocess.check_output(["ss", "-t", "-a", port_filter], stderr=subprocess.DEVNULL).decode()
         for line in out.splitlines():
             if "ESTAB" in line:
                 established += 1
@@ -97,50 +93,47 @@ def count_tcp_sockets(port: int = 8080):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Oxid Process Live Monitor during Benchmarks")
-    parser.add_argument("--pid", type=int, default=0, help="PID du processus Oxid (auto-détecté par défaut)")
+    parser = argparse.ArgumentParser(description="Oxid Cluster & Process Live Monitor during Benchmarks")
+    parser.add_argument("--pids", nargs="*", type=int, default=[], help="PIDs des processus Oxid (auto-détectés par défaut)")
     parser.add_argument("--interval", type=float, default=1.0, help="Intervalle d'échantillonnage en secondes (défaut: 1.0)")
     parser.add_argument("--output", default="bench/metrics_telemetry.csv", help="Fichier de sortie CSV")
-    parser.add_argument("--port", type=int, default=8080, help="Port d'écoute HTTP d'Oxid (défaut: 8080)")
     args = parser.parse_args()
 
-    pid = args.pid or find_oxid_pid()
-    if not pid or not os.path.exists(f"/proc/{pid}"):
-        print(f"{RED}[ERREUR] Impossible de trouver le processus Oxid en cours d'exécution.{RESET}")
-        print("Veuillez spécifier explicitement le PID avec --pid <PID>.")
+    pids = args.pids or find_oxid_pids()
+    if not pids:
+        print(f"{RED}[ERREUR] Aucun processus Oxid actif détecté.{RESET}")
         sys.exit(1)
 
     clk_tck = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
     num_cpus = os.cpu_count() or 1
 
     print(f"{BOLD}================================================================================{RESET}")
-    print(f"            {BOLD}{CYAN}OXID MONITOR — TÉLÉMÉTRIE DU PROCESSUS EN DIRECT{RESET}            ")
+    print(f"       {BOLD}{CYAN}OXID CLUSTER MONITOR — TÉLÉMÉTRIE EN DIRECT (2 NŒUDS + LB){RESET}       ")
     print(f"{BOLD}================================================================================{RESET}")
-    print(f"  * PID surveillé      : {BOLD}{GREEN}{pid}{RESET}")
-    print(f"  * Intervalle mesure  : {args.interval} s")
-    print(f"  * Nombre de cœurs CPU: {num_cpus}")
-    print(f"  * Fichier export CSV : {CYAN}{args.output}{RESET}")
+    print(f"  * Nœuds surveillés   : {BOLD}{GREEN}{', '.join(str(p) for p in pids)}{RESET} ({len(pids)} instances)")
+    print(f"  * Cœurs CPU système  : {num_cpus}")
+    print(f"  * Port Load Balancer : 8080 (NGINX -> 8081 & 8083)")
+    print(f"  * Export CSV         : {CYAN}{args.output}{RESET}")
     print(f"{BOLD}================================================================================{RESET}\n")
 
     csv_file = open(args.output, "w", newline="")
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow([
-        "timestamp", "elapsed_s", "cpu_percent", "vm_rss_mb", "vm_hwm_mb",
-        "threads", "open_fds", "tcp_established", "tcp_time_wait"
+        "timestamp", "elapsed_s", "active_nodes", "total_cpu_percent",
+        "total_rss_mb", "max_hwm_mb", "total_threads", "total_fds",
+        "tcp_established", "tcp_time_wait"
     ])
 
-    header = f"{'Heure':<8} | {'Écoulé':<7} | {'CPU (%)':<8} | {'RAM (RSS)':<10} | {'Pic (HWM)':<10} | {'Threads':<7} | {'FDs':<6} | {'TCP ESTAB':<9} | {'TIME_WAIT'}"
+    header = f"{'Heure':<8} | {'Écoulé':<7} | {'Nœuds':<5} | {'CPU Total':<10} | {'RAM Totale':<12} | {'Threads':<7} | {'FDs':<6} | {'TCP ESTAB':<9} | {'TIME_WAIT'}"
     print(BOLD + header + RESET)
     print("-" * len(header))
 
     t_start = time.time()
-    prev_utime, prev_stime = read_proc_stat(pid)
+    prev_stats = {p: read_proc_stat(p) for p in pids}
     prev_time = time.time()
 
     records_cpu = []
     records_rss = []
-    records_fds = []
-    records_estab = []
 
     try:
         while True:
@@ -148,52 +141,56 @@ def main():
             now = time.time()
             dt = now - prev_time
 
-            cur_utime, cur_stime = read_proc_stat(pid)
-            if not os.path.exists(f"/proc/{pid}"):
-                print(f"\n{RED}[ALERTE] Le processus {pid} s'est arrêté !{RESET}")
+            active_pids = [p for p in pids if os.path.exists(f"/proc/{p}")]
+            if not active_pids:
+                print(f"\n{RED}[ALERTE] Tous les nœuds Oxid se sont arrêtés !{RESET}")
                 break
 
-            status = read_proc_status(pid)
+            total_cpu = 0.0
+            total_rss = 0.0
+            max_hwm = 0.0
+            total_threads = 0
+            total_fds = 0
 
-            # Calcul CPU %
-            total_ticks = (cur_utime - prev_utime) + (cur_stime - prev_stime)
-            cpu_percent = (total_ticks / (clk_tck * dt)) * 100.0 if dt > 0 else 0.0
+            for p in active_pids:
+                cur_u, cur_s = read_proc_stat(p)
+                prev_u, prev_s = prev_stats.get(p, (cur_u, cur_s))
+                ticks = (cur_u - prev_u) + (cur_s - prev_s)
+                p_cpu = (ticks / (clk_tck * dt)) * 100.0 if dt > 0 else 0.0
+                total_cpu += p_cpu
 
-            # Calcul RAM
-            rss_kb = int(status.get("VmRSS", "0 kB").split()[0])
-            hwm_kb = int(status.get("VmHWM", "0 kB").split()[0])
-            rss_mb = rss_kb / 1024.0
-            hwm_mb = hwm_kb / 1024.0
+                st = read_proc_status(p)
+                rss_kb = int(st.get("VmRSS", "0 kB").split()[0])
+                hwm_kb = int(st.get("VmHWM", "0 kB").split()[0])
+                total_rss += (rss_kb / 1024.0)
+                max_hwm = max(max_hwm, hwm_kb / 1024.0)
+                total_threads += int(st.get("Threads", "1"))
+                total_fds += count_open_fds(p)
 
-            threads = int(status.get("Threads", "1"))
-            fds = count_open_fds(pid)
-            estab, tw = count_tcp_sockets(args.port)
+                prev_stats[p] = (cur_u, cur_s)
 
+            estab, tw = count_tcp_sockets([8080, 8081, 8083])
             elapsed = int(now - t_start)
             h_str = datetime.datetime.now().strftime("%H:%M:%S")
 
-            records_cpu.append(cpu_percent)
-            records_rss.append(rss_mb)
-            records_fds.append(fds)
-            records_estab.append(estab)
+            records_cpu.append(total_cpu)
+            records_rss.append(total_rss)
 
-            # Ligne console
-            cpu_color = GREEN if cpu_percent < 50 else (YELLOW if cpu_percent < 150 else RED)
+            cpu_color = GREEN if total_cpu < 100 else (YELLOW if total_cpu < 300 else RED)
             row = (
-                f"{h_str:<8} | {elapsed:>5}s  | {cpu_color}{cpu_percent:>7.1f}%{RESET} | "
-                f"{rss_mb:>7.2f} Mo | {hwm_mb:>7.2f} Mo | {threads:>7} | {fds:>6} | "
+                f"{h_str:<8} | {elapsed:>5}s  | {len(active_pids):>5} | "
+                f"{cpu_color}{total_cpu:>8.1f}%{RESET} | "
+                f"{total_rss:>9.2f} Mo | {total_threads:>7} | {total_fds:>6} | "
                 f"{estab:>9} | {tw:>9}"
             )
             print(row)
 
-            # CSV Write
             csv_writer.writerow([
-                h_str, elapsed, round(cpu_percent, 2), round(rss_mb, 2), round(hwm_mb, 2),
-                threads, fds, estab, tw
+                h_str, elapsed, len(active_pids), round(total_cpu, 2),
+                round(total_rss, 2), round(max_hwm, 2), total_threads,
+                total_fds, estab, tw
             ])
             csv_file.flush()
-
-            prev_utime, prev_stime = cur_utime, cur_stime
             prev_time = now
 
     except KeyboardInterrupt:
@@ -201,22 +198,6 @@ def main():
 
     finally:
         csv_file.close()
-
-    # Synthèse
-    if records_cpu:
-        print(f"\n{BOLD}================================================================================")
-        print(f"                   SYNTHÈSE DE LA TÉLÉMÉTRIE SYSTÈME                         ")
-        print(f"================================================================================{RESET}")
-        print(f"  * Durée d'observation      : {int(time.time() - t_start)} secondes")
-        print(f"  * CPU Utilisé (Moyenne)    : {sum(records_cpu)/len(records_cpu):.1f}%")
-        print(f"  * CPU Utilisé (Pic Max)    : {max(records_cpu):.1f}%")
-        print(f"  * RAM Résidente Initiale   : {records_rss[0]:.2f} Mo")
-        print(f"  * RAM Résidente Finale     : {records_rss[-1]:.2f} Mo (Variation : {records_rss[-1] - records_rss[0]:+.2f} Mo)")
-        print(f"  * Pic Historique RAM (HWM) : {max(records_rss):.2f} Mo")
-        print(f"  * Descripteurs FDs Max     : {max(records_fds)}")
-        print(f"  * Connexions TCP Max simul.: {max(records_estab)} actives simultanées")
-        print(f"  * Fichier de logs détaillé : {CYAN}{args.output}{RESET}")
-        print(f"{BOLD}================================================================================{RESET}\n")
 
 
 if __name__ == "__main__":
