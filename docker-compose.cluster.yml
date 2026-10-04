@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # Load Balancer inverse HTTP
+  loadbalancer:
+    image: nginx:alpine
+    container_name: oxid-lb
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx-cluster.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - oxid-node-1
+      - oxid-node-2
+
+  # Cache distribué haute performance Valkey / Redis (in-memory L2)
+  valkey-cache:
+    image: valkey/valkey:7.2-alpine
+    container_name: oxid-valkey
+    restart: unless-stopped
+    command: ["valkey-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+
+  # Nœud 1 du Cluster Oxid
+  oxid-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid-node-1
+    restart: unless-stopped
+    environment:
+      - OXID_NODE_ID=oxid-node-1
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_REDIS_URL=redis://valkey-cache:6379
+      - RUST_LOG=oxid=info,tower_http=info
+    volumes:
+      - shared_storage:/data
+    depends_on:
+      - valkey-cache
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '1.0'
+
+  # Nœud 2 du Cluster Oxid
+  oxid-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid-node-2
+    restart: unless-stopped
+    environment:
+      - OXID_NODE_ID=oxid-node-2
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_REDIS_URL=redis://valkey-cache:6379
+      - RUST_LOG=oxid=info,tower_http=info
+    volumes:
+      - shared_storage:/data
+    depends_on:
+      - valkey-cache
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '1.0'
+
+volumes:
+  shared_storage:
+    driver: local

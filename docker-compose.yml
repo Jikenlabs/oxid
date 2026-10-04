@@ -1,0 +1,121 @@
+version: '3.8'
+
+# ==============================================================================
+# Profils disponibles :
+#   1. office2pdf seul (Ultra-sobre, zéro conteneur externe, RAM < 128M) :
+#        docker compose --profile office2pdf up -d
+#
+#   2. gotenberg seul (Fidélité LibreOffice 100%, sans office2pdf) :
+#        docker compose --profile gotenberg up -d
+#
+#   3. hybrid (Les 2 ensemble, office2pdf d'abord + Gotenberg en fallback) :
+#        docker compose --profile hybrid up -d
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # PROFIL 1 : Oxid autonome avec office2pdf seul (Typst en Rust)
+  # ----------------------------------------------------------------------------
+  oxid-office2pdf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid-office2pdf
+    restart: unless-stopped
+    profiles: ["office2pdf"]
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=office2pdf
+      - RUST_LOG=oxid=info,tower_http=info
+    volumes:
+      - oxid_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '1.0'
+
+  # ----------------------------------------------------------------------------
+  # PROFIL 2 : Oxid avec Gotenberg seul (LibreOffice pur)
+  # ----------------------------------------------------------------------------
+  oxid-gotenberg-only:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid-gotenberg-only
+    restart: unless-stopped
+    profiles: ["gotenberg"]
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=gotenberg
+      - RUST_LOG=oxid=info,tower_http=info
+    volumes:
+      - oxid_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - gotenberg
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+
+  # ----------------------------------------------------------------------------
+  # PROFIL 3 : Les deux ensemble (Hybrid : office2pdf prioritaire + Gotenberg fallback)
+  # ----------------------------------------------------------------------------
+  oxid-hybrid:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid-hybrid
+    restart: unless-stopped
+    profiles: ["hybrid", "default"]
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=hybrid
+      - RUST_LOG=oxid=info,tower_http=info
+    volumes:
+      - oxid_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - gotenberg
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+
+  # ----------------------------------------------------------------------------
+  # Service Gotenberg (activé automatiquement pour les profils gotenberg et hybrid)
+  # ----------------------------------------------------------------------------
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: oxid-gotenberg
+    restart: unless-stopped
+    profiles: ["gotenberg", "hybrid", "default"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - oxid_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+volumes:
+  oxid_data:
+    driver: local
+

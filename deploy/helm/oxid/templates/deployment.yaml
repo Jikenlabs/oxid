@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oxidrender.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "oxidrender.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "oxidrender.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/api/metrics"
+      labels:
+        app.kubernetes.io/name: {{ include "oxidrender.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: OXID_HOST
+              value: "{{ .Values.env.OXID_HOST }}"
+            - name: OXID_PORT
+              value: "{{ .Values.env.OXID_PORT }}"
+            - name: OXID_DATA_DIR
+              value: "{{ .Values.env.OXID_DATA_DIR }}"
+            - name: RUST_LOG
+              value: "{{ .Values.env.RUST_LOG }}"
+            - name: OXID_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .Values.cache.enabled }}
+            - name: OXID_REDIS_URL
+              value: "{{ .Values.cache.redisUrl }}"
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+      volumes:
+        - name: data-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "oxidrender.fullname" . }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

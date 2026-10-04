@@ -1,0 +1,179 @@
+
+# ==============================================================================
+# OxidRender + 3 GEDs Open-Source Légères en Cohabitation Docker
+# ==============================================================================
+#
+# Utilisation avec les profils Docker Compose :
+#
+# 1. Lancer TOUT ensemble (OxidRender + les 3 GEDs) :
+#      docker compose -f docker-compose.ged.yml --profile all-ged up -d
+#
+# 2. Lancer uniquement Paperless-ngx + OxidRender :
+#      docker compose -f docker-compose.ged.yml --profile paperless up -d
+#
+# 3. Lancer uniquement Nextcloud + OxidRender :
+#      docker compose -f docker-compose.ged.yml --profile nextcloud up -d
+#
+# 4. Lancer uniquement la GED CMIS + OxidRender :
+#      docker compose -f docker-compose.ged.yml --profile cmis up -d
+#
+# ==============================================================================
+
+networks:
+  oxid-net:
+    name: oxid-net
+    driver: bridge
+
+volumes:
+  oxid_data:
+  paperless_data:
+  paperless_media:
+  paperless_redis:
+  paperless_export:
+  paperless_consume:
+  nextcloud_data:
+
+services:
+  # ============================================================================
+  # SERVICE CENTRAL : Oxid (Moteur Rust haute performance)
+  # Port hôte : 8080
+  # ============================================================================
+  oxid:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oxid
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - OXID_HOST=0.0.0.0
+      - OXID_PORT=8080
+      - OXID_DATA_DIR=/data
+      - OXID_OFFICE_ENGINE=hybrid
+      - OXID_GOTENBERG_URL=http://gotenberg:3000
+      - OXID_ALFRESCO_CMIS_URL=http://cmis-server:8080/chemistry-opencmis-server-inmemory/atom11
+      - RUST_LOG=oxid=info,tower_http=info
+    networks:
+      - oxid-net
+    volumes:
+      - oxid_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+
+  # ----------------------------------------------------------------------------
+  # Convertisseur LibreOffice Gotenberg (optionnel pour Office haute fidélité)
+  # ----------------------------------------------------------------------------
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: oxid-gotenberg
+    restart: unless-stopped
+    profiles: ["all-ged", "office"]
+    ports:
+      - "3000:3000"
+    networks:
+      - oxid-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # ============================================================================
+  # OPTION 1 : Paperless-ngx (GED moderne pour documents scannés / PDF / factures)
+  # Port hôte : 8000
+  # RAM typique : ~350 - 500 Mo
+  # ============================================================================
+  paperless-redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: paperless-redis
+    restart: unless-stopped
+    profiles: ["paperless", "all-ged"]
+    networks:
+      - oxid-net
+    volumes:
+      - paperless_redis:/data
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  paperless-web:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless-web
+    restart: unless-stopped
+    profiles: ["paperless", "all-ged"]
+    ports:
+      - "8000:8000"
+    environment:
+      - PAPERLESS_REDIS=redis://paperless-redis:6379
+      - PAPERLESS_DBENGINE=sqlite
+      - PAPERLESS_SECRET_KEY=oxid-paperless-insecure-key-change-me
+      - PAPERLESS_URL=http://localhost:8000
+      - PAPERLESS_TIME_ZONE=Europe/Paris
+      - PAPERLESS_OCR_LANGUAGE=fra+eng
+      - PAPERLESS_TASK_WORKERS=1
+      - PAPERLESS_THREADS_PER_WORKER=1
+      - PAPERLESS_CONSUMER_POLLING=30
+    networks:
+      - oxid-net
+    volumes:
+      - paperless_data:/usr/src/paperless/data
+      - paperless_media:/usr/src/paperless/media
+      - paperless_export:/usr/src/paperless/export
+      - paperless_consume:/usr/src/paperless/consume
+    depends_on:
+      - paperless-redis
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # ============================================================================
+  # OPTION 2 : Nextcloud (GED cloud / WebDAV / Partage de fichiers & dossiers)
+  # Port hôte : 8081
+  # RAM typique : ~250 - 400 Mo
+  # ============================================================================
+  nextcloud:
+    image: nextcloud:apache
+    container_name: nextcloud-ged
+    restart: unless-stopped
+    profiles: ["nextcloud", "all-ged"]
+    ports:
+      - "8081:80"
+    environment:
+      - SQLITE_DATABASE=nextcloud
+      - NEXTCLOUD_TRUSTED_DOMAINS=localhost nextcloud-ged
+    networks:
+      - oxid-net
+    volumes:
+      - nextcloud_data:/var/www/html
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '1.0'
+
+  # ============================================================================
+  # OPTION 3 : GED CMIS (Standard ECM ouvert / Compatible connecteur cmis.rs)
+  # Port hôte : 8082
+  # RAM typique : ~200 - 300 Mo
+  # ============================================================================
+  cmis-server:
+    image: fugeritorg/opencmis:latest
+    container_name: cmis-server
+    restart: unless-stopped
+    profiles: ["cmis", "all-ged"]
+    ports:
+      - "8082:8080"
+    networks:
+      - oxid-net
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '1.0'

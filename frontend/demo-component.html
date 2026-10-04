@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oxid - Web Component &lt;oxid-viewer&gt; Demo</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #1e293b;
+      --accent: #0ea5e9;
+      --accent-hover: #0284c7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel);
+      padding: 14px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .badge {
+      background: rgba(14, 165, 233, 0.2);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .tagline {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .control-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 4px;
+    }
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      margin: 0 8px;
+    }
+    button.btn-ctrl {
+      background: #334155;
+      color: var(--text);
+      border: 1px solid #475569;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button.btn-ctrl:hover {
+      background: #475569;
+      border-color: #64748b;
+    }
+    button.btn-ctrl.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    button.btn-ctrl.primary:hover {
+      background: var(--accent-hover);
+    }
+    button.btn-ctrl.danger {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+    button.btn-ctrl.danger:hover {
+      background: #ef4444;
+      color: white;
+    }
+    input.input-ctrl {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      width: 130px;
+    }
+    input.input-ctrl:focus {
+      border-color: var(--accent);
+    }
+    .viewer-container {
+      flex: 1;
+      min-height: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    button.btn-ctrl.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .main-layout {
+      flex: 1;
+      display: flex;
+      gap: 16px;
+      min-height: 0;
+    }
+    .viewer-container {
+      flex: 1;
+      min-height: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    oxid-viewer {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .event-log-panel {
+      width: 320px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .event-log-header {
+      padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .event-log-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .event-item {
+      background: #0f172a;
+      border-left: 3px solid var(--accent);
+      padding: 6px 8px;
+      border-radius: 0 4px 4px 0;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .event-time {
+      color: var(--text-muted);
+      font-size: 10px;
+      margin-right: 4px;
+    }
+    .event-name {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Oxid</h1>
+      <span class="badge">&lt;oxid-viewer&gt; Web Component</span>
+    </div>
+    <div class="tagline">
+      Intégration HTML standard • 0 Dépendance • API JavaScript Host complète
+    </div>
+  </header>
+
+  <div class="controls-bar">
+    <div class="control-group">
+      <span class="control-label">Document:</span>
+      <input type="file" id="hostFileInput" style="display: none;" />
+      <button class="btn-ctrl primary" id="btnHostUpload">📁 Ouvrir fichier</button>
+      <button class="btn-ctrl" id="btnHostDownload">⬇️ Télécharger</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Outils d'annotation:</span>
+      <div class="btn-group">
+        <button class="btn-ctrl active" id="btnToolSelect" data-tool="select">↖ Curseur</button>
+        <button class="btn-ctrl" id="btnToolHighlight" data-tool="highlight">🖍️ Surligner</button>
+        <button class="btn-ctrl" id="btnToolNote" data-tool="note">📝 Note</button>
+        <button class="btn-ctrl" id="btnToolRedact" data-tool="redact">⬛ Biffer</button>
+        <button class="btn-ctrl danger" id="btnHostBurnIn">🔥 Appliquer biffures</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Outils Pro:</span>
+      <button class="btn-ctrl primary" id="btnHostBuilder">📑 Builder</button>
+      <button class="btn-ctrl primary" id="btnHostCompare">⚖️ Comparateur (Visuel & Sémantique)</button>
+      <button class="btn-ctrl danger" id="btnHostPii">🛡️ RGPD / PII</button>
+      <button class="btn-ctrl primary" id="btnHostSign">✍️ Signer</button>
+      <button class="btn-ctrl" id="btnHostForms">📋 Formulaire</button>
+      <button class="btn-ctrl" id="btnHostFillTest">⚡ Auto-remplir</button>
+      <button class="btn-ctrl" id="btnHostSaveForms">💾 Sauver Form</button>
+    </div>
+
+        <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Sécurité & RBAC:</span>
+      <input type="text" class="input-ctrl" id="inputWatermark" placeholder="Filigrane" value="CONFIDENTIEL - Jean DUPONT (12/09/2026)" style="width: 220px;" />
+      <button class="btn-ctrl primary" id="btnToggleWatermark">🛡️ Filigrane</button>
+      <select id="selectRbacProfile" class="input-ctrl" style="width: 175px; font-weight: 600;">
+        <option value="admin">👑 Admin (Tous droits)</option>
+        <option value="readonly">👁️ Lecture seule</option>
+        <option value="nodownload">🚫 Sans Téléchargement</option>
+        <option value="noprint">🖨️ Sans Impression</option>
+        <option value="noredaction">🛡️ Sans Biffure RGPD</option>
+      </select>
+      <span id="rbacStatusBadge" style="padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #059669; color: white; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: all 0.2s ease;">
+        👑 ACCÈS TOTAL (ADMIN)
+      </span>
+      <button class="btn-ctrl" id="btnHostPrint">🖨️ Imprimer</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Affichage & Zoom:</span>
+      <button class="btn-ctrl active" id="btnHostModeSingle" title="Page simple">📄 Simple</button>
+      <button class="btn-ctrl" id="btnHostModeDouble" title="Double page / Livre">📖 Double</button>
+      <button class="btn-ctrl" id="btnHostModeGrid" title="Planche contact / Mosaïque">⊞ Grille</button>
+      <button class="btn-ctrl" id="btnHostFullscreen" title="Plein écran (F)">⛶ Plein écran</button>
+      <button class="btn-ctrl" id="btnFitWidth">Largeur</button>
+      <button class="btn-ctrl" id="btnFitPage">Page</button>
+      <button class="btn-ctrl" id="btnZoomOut">－ 80%</button>
+      <button class="btn-ctrl" id="btnZoomNormal">100%</button>
+      <button class="btn-ctrl" id="btnRotate" title="Pivoter la page courante de 90°">⟳ Page 90°</button>
+      <button class="btn-ctrl" id="btnRotateAll" title="Pivoter toutes les pages de 90°">⟳ Tout 90°</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Volet:</span>
+      <button class="btn-ctrl" id="btnTabThumbs">Vignettes</button>
+      <button class="btn-ctrl" id="btnTabBookmarks">Signets</button>
+      <button class="btn-ctrl" id="btnTabAnnots">Annotations</button>
+      <button class="btn-ctrl" id="btnTabForms">Formulaire</button>
+      <button class="btn-ctrl" id="btnTabInfo">ℹ️ Infos</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <span class="control-label">Recherche:</span>
+      <input type="text" id="hostSearchInput" class="input-ctrl" placeholder="Rechercher..." value="" />
+      <button class="btn-ctrl" id="btnHostSearch">OK</button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="viewer-container">
+      <oxid-viewer id="myViewer"></oxid-viewer>
+    </div>
+
+    <div class="event-log-panel">
+      <div class="event-log-header">
+        <span>Console d'événements DOM</span>
+        <button class="btn-ctrl" id="btnClearLogs" style="padding: 2px 8px; font-size: 10px;">Effacer</button>
+      </div>
+      <div class="event-log-list" id="eventLogList">
+        <div style="color: var(--text-muted); font-style: italic;">En attente d'événements...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charger le bundle ESM du Web Component -->
+  <script type="module" src="./oxid-viewer.es.js"></script>
+
+  <script type="module">
+    const viewer = document.getElementById('myViewer');
+    const logList = document.getElementById('eventLogList');
+
+    function logEvent(name, detail) {
+      if (logList.children.length === 1 && logList.children[0].textContent.includes('En attente')) {
+        logList.innerHTML = '';
+      }
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'event-item';
+
+      let borderColor = 'var(--accent)';
+      let nameColor = '#38bdf8';
+      if (name === 'uploadstart') {
+        borderColor = '#f59e0b';
+        nameColor = '#fbbf24';
+      } else if (name === 'uploaderror') {
+        borderColor = '#ef4444';
+        nameColor = '#f87171';
+      } else if (name === 'documentloaded') {
+        borderColor = '#10b981';
+        nameColor = '#34d399';
+      } else if (name === 'filedropped') {
+        borderColor = '#a855f7';
+        nameColor = '#c084fc';
+      } else if (name === 'permissionschanged' || name === 'rbac_profile_changed') {
+        borderColor = '#e11d48';
+        nameColor = '#fb7185';
+      } else if (name === 'viewmodechanged') {
+        borderColor = '#0284c7';
+        nameColor = '#38bdf8';
+      }
+
+      div.style.borderLeftColor = borderColor;
+      div.innerHTML = `<span class="event-time">[${time}]</span> <span class="event-name" style="color: ${nameColor};">${name}</span>: <span>${JSON.stringify(detail)}</span>`;
+      logList.prepend(div);
+    }
+
+    // Forwarded DOM Events
+    ['documentloaded', 'pagechanged', 'toolchanged', 'annotationsaved', 'burninapplied', 'uploadstart', 'uploaderror', 'filedropped', 'permissionschanged', 'viewmodechanged'].forEach((evtName) => {
+      viewer.addEventListener(evtName, (e) => {
+        logEvent(evtName, e.detail);
+
+        if (evtName === 'viewmodechanged' && e.detail?.mode) {
+          const m = e.detail.mode;
+          document.getElementById('btnHostModeSingle')?.classList.toggle('active', m === 'single');
+          document.getElementById('btnHostModeDouble')?.classList.toggle('active', m === 'double');
+          document.getElementById('btnHostModeGrid')?.classList.toggle('active', m === 'grid');
+        }
+
+        if (evtName === 'toolchanged' && e.detail?.tool) {
+          document.querySelectorAll('.btn-group button[data-tool]').forEach((b) => {
+            if (b.getAttribute('data-tool') === e.detail.tool) {
+              b.classList.add('active');
+            } else {
+              b.classList.remove('active');
+            }
+          });
+        }
+      });
+    });
+
+    document.getElementById('btnClearLogs').onclick = () => {
+      logList.innerHTML = '<div style="color: var(--text-muted); font-style: italic;">En attente d\'événements...</div>';
+    };
+
+    // Host file upload
+    const fileInput = document.getElementById('hostFileInput');
+    document.getElementById('btnHostUpload').onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      viewer.uploadDocument(file);
+    };
+
+    // Tools
+    document.querySelectorAll('.btn-group button[data-tool]').forEach((btn) => {
+      btn.onclick = () => {
+        const tool = btn.getAttribute('data-tool');
+        viewer.setTool(tool);
+      };
+    });
+    document.getElementById('btnHostBurnIn').onclick = () => viewer.openRedactionDialog();
+
+    // Pro Dialogs
+    document.getElementById('btnHostBuilder').onclick = () => viewer.openDocumentBuilder();
+    document.getElementById('btnHostCompare').onclick = () => viewer.openComparisonDialog();
+    document.getElementById('btnHostPii').onclick = () => viewer.runPiiScan();
+    document.getElementById('btnHostSign').onclick = () => viewer.openSignatureDialog();
+    document.getElementById('btnHostDownload').onclick = () => viewer.download();
+    document.getElementById('btnHostPrint').onclick = () => viewer.print();
+
+    // Security & RBAC Controls
+    const inputWatermark = document.getElementById('inputWatermark');
+    const btnToggleWatermark = document.getElementById('btnToggleWatermark');
+    let watermarkActive = false;
+
+    btnToggleWatermark.onclick = () => {
+      watermarkActive = !watermarkActive;
+      if (watermarkActive) {
+        const text = inputWatermark.value || 'CONFIDENTIEL - Jean DUPONT (12/09/2026)';
+        viewer.setWatermark(text);
+        btnToggleWatermark.textContent = '❌ Retirer Filigrane';
+        btnToggleWatermark.classList.add('danger');
+        btnToggleWatermark.classList.remove('primary');
+        logEvent('watermark_applied', { text });
+      } else {
+        viewer.setWatermark('');
+        btnToggleWatermark.textContent = '🛡️ Filigrane';
+        btnToggleWatermark.classList.remove('danger');
+        btnToggleWatermark.classList.add('primary');
+        logEvent('watermark_removed', {});
+      }
+    };
+
+    const selectRbac = document.getElementById('selectRbacProfile');
+    const rbacBadge = document.getElementById('rbacStatusBadge');
+
+    function applyRbacProfile(val) {
+      let perms = {
+        canDownload: true,
+        canPrint: true,
+        canRedact: true,
+        canAnnotate: true,
+        canSign: true,
+        canBuild: true,
+        canUpload: true,
+        readOnly: false,
+      };
+
+      if (val === 'readonly') {
+        perms = { readOnly: true, canDownload: false, canPrint: false, canRedact: false, canAnnotate: false, canSign: false, canBuild: false, canUpload: false };
+      } else if (val === 'nodownload') {
+        perms.canDownload = false;
+      } else if (val === 'noprint') {
+        perms.canPrint = false;
+      } else if (val === 'noredaction') {
+        perms.canRedact = false;
+      }
+
+      // Update badge visuals
+      if (rbacBadge) {
+        if (val === 'admin') {
+          rbacBadge.style.background = '#059669';
+          rbacBadge.innerHTML = '👑 ACCÈS TOTAL (ADMIN)';
+        } else if (val === 'readonly') {
+          rbacBadge.style.background = '#dc2626';
+          rbacBadge.innerHTML = '👁️ LECTURE SEULE (TOUT BLOQUÉ)';
+        } else if (val === 'nodownload') {
+          rbacBadge.style.background = '#ea580c';
+          rbacBadge.innerHTML = '🚫 TÉLÉCHARGEMENT BLOQUÉ';
+        } else if (val === 'noprint') {
+          rbacBadge.style.background = '#d97706';
+          rbacBadge.innerHTML = '🖨️ IMPRESSION BLOQUÉE';
+        } else if (val === 'noredaction') {
+          rbacBadge.style.background = '#7c3aed';
+          rbacBadge.innerHTML = '🛡️ BIFFURE DÉSACTIVÉE';
+        }
+      }
+
+      // 1. Update <oxid-viewer> internal UI
+      if (typeof viewer.setPermissions === 'function') {
+        viewer.setPermissions(perms);
+      }
+
+      // 2. Visually update Host toolbar buttons
+      const isRead = !!perms.readOnly;
+      const canDl = !isRead && perms.canDownload !== false;
+      const canPr = !isRead && perms.canPrint !== false;
+      const canRed = !isRead && perms.canRedact !== false;
+      const canAnn = !isRead && perms.canAnnotate !== false;
+      const canSgn = !isRead && perms.canSign !== false;
+      const canBld = !isRead && perms.canBuild !== false;
+      const canUpl = !isRead && perms.canUpload !== false;
+
+      const setBtnState = (id, active) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.opacity = active ? '1' : '0.25';
+          el.style.pointerEvents = active ? 'auto' : 'none';
+          el.style.filter = active ? 'none' : 'grayscale(100%)';
+          el.title = active ? '' : 'Désactivé par la politique RBAC active';
+        }
+      };
+
+      setBtnState('btnHostUpload', canUpl);
+      setBtnState('btnHostDownload', canDl);
+      setBtnState('btnHostPrint', canPr);
+      setBtnState('btnToolHighlight', canAnn);
+      setBtnState('btnToolNote', canAnn);
+      setBtnState('btnToolRedact', canRed);
+      setBtnState('btnHostBurnIn', canRed);
+      setBtnState('btnHostPii', canRed);
+      setBtnState('btnHostSign', canSgn);
+      setBtnState('btnHostBuilder', canBld);
+      setBtnState('btnHostForms', !isRead);
+      setBtnState('btnHostFillTest', !isRead);
+      setBtnState('btnHostSaveForms', !isRead);
+
+      logEvent('rbac_profile_changed', { profile: val, permissions: perms });
+    }
+
+    if (selectRbac) {
+      selectRbac.addEventListener('change', () => applyRbacProfile(selectRbac.value));
+      selectRbac.addEventListener('input', () => applyRbacProfile(selectRbac.value));
+    }
+
+    // Trigger on element ready to guarantee initial status
+    customElements.whenDefined('oxid-viewer').then(() => {
+      applyRbacProfile(selectRbac ? selectRbac.value : 'admin');
+    });
+
+    // Layout & View Modes
+    document.getElementById('btnHostModeSingle').onclick = () => viewer.setViewMode('single');
+    document.getElementById('btnHostModeDouble').onclick = () => viewer.setViewMode('double');
+    document.getElementById('btnHostModeGrid').onclick = () => viewer.setViewMode('grid');
+    document.getElementById('btnHostFullscreen').onclick = () => viewer.toggleFullscreen();
+
+    // Zoom & Fit
+    document.getElementById('btnFitWidth').onclick = () => viewer.fitWidth();
+    document.getElementById('btnFitPage').onclick = () => viewer.fitPage();
+    document.getElementById('btnZoomOut').onclick = () => viewer.setZoom(0.8);
+    document.getElementById('btnZoomNormal').onclick = () => viewer.setZoom(1.0);
+    document.getElementById('btnZoomIn').onclick = () => viewer.setZoom(1.3);
+    document.getElementById('btnRotate').onclick = () => viewer.rotate(90, 'current');
+    document.getElementById('btnRotateAll').onclick = () => viewer.rotate(90, 'all');
+
+    // Sidebar
+    document.getElementById('btnTabThumbs').onclick = () => viewer.toggleSidebar('thumbnails');
+    document.getElementById('btnTabBookmarks').onclick = () => viewer.toggleSidebar('bookmarks');
+    document.getElementById('btnTabAnnots').onclick = () => viewer.toggleSidebar('annotations');
+    document.getElementById('btnTabForms').onclick = () => viewer.toggleSidebar('forms');
+    document.getElementById('btnTabInfo').onclick = () => viewer.toggleSidebar('info');
+
+    // Forms API
+    document.getElementById('btnHostForms').onclick = () => viewer.toggleSidebar('forms');
+    document.getElementById('btnHostFillTest').onclick = () => {
+      const fields = viewer.getFormFields();
+      if (!fields || fields.length === 0) {
+        alert('Aucun champ de formulaire interactif détecté dans ce document.');
+        return;
+      }
+      fields.forEach((f) => {
+        if (f.field_type === 'text') {
+          viewer.setFormFieldValue(f.name, `Test ${f.name}`);
+        } else if (f.field_type === 'checkbox') {
+          viewer.setFormFieldValue(f.name, 'Yes');
+        }
+      });
+      logEvent('formautofilled', { count: fields.length, values: viewer.getFormValues() });
+    };
+    document.getElementById('btnHostSaveForms').onclick = async () => {
+      await viewer.saveFormValues();
+    };
+
+    // Search API
+    document.getElementById('btnHostSearch').onclick = () => {
+      const q = document.getElementById('hostSearchInput').value;
+      if (q) viewer.search(q);
+    };
+
+    // Host Drag & Drop Visuals & Global Drop Support
+    const viewerContainer = document.querySelector('.viewer-container');
+    let hostDragCounter = 0;
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      hostDragCounter++;
+      if (viewerContainer) {
+        viewerContainer.style.borderColor = 'var(--accent)';
+        viewerContainer.style.boxShadow = '0 0 25px rgba(14, 165, 233, 0.45)';
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      hostDragCounter = Math.max(0, hostDragCounter - 1);
+      if (hostDragCounter === 0 && viewerContainer) {
+        viewerContainer.style.borderColor = 'var(--border)';
+        viewerContainer.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.4)';
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      hostDragCounter = 0;
+      if (viewerContainer) {
+        viewerContainer.style.borderColor = 'var(--border)';
+        viewerContainer.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.4)';
+      }
+
+      const file = e.dataTransfer?.files?.[0] || (e.dataTransfer?.items?.[0]?.getAsFile?.());
+      if (file) {
+        viewer.uploadDocument(file);
+      }
+    });
+  </script>
+</body>
+</html>

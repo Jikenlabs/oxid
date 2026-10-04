@@ -1,0 +1,34 @@
+<!-- Oxid Integration for Alfresco Share -->
+<alfresco-config>
+   <!-- Document Library Actions -->
+   <config evaluator="string-compare" condition="DocLibActions">
+      <actions>
+         <action id="document-view-oxid" type="javascript"
+                 label="actions.document.view-oxid"
+                 icon="document-view-content">
+            <param name="function">onActionOxidView</param>
+            <permissions>
+               <permission allow="true">Read</permission>
+            </permissions>
+         </action>
+      </actions>
+      <actionGroups>
+         <actionGroup id="document-browse">
+            <action index="100" id="document-view-oxid" />
+         </actionGroup>
+         <actionGroup id="document-details">
+            <action index="100" id="document-view-oxid" />
+         </actionGroup>
+      </actionGroups>
+   </config>
+
+   <!-- Document Details View Customization -->
+   <config evaluator="string-compare" condition="DocumentDetails">
+      <document-details>
+         <!-- Custom previewer component pointing to Oxid -->
+         <component id="oxid-previewer">
+            <url>/share/service/components/preview/oxid-previewer</url>
+         </component>
+      </document-details>
+   </config>
+</alfresco-config>

@@ -1,0 +1,19 @@
+apiVersion: v2
+name: oxid
+description: Ultra-lightweight, high-performance open source document viewer and rendition cluster
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+license: MIT
+keywords:
+  - document-viewer
+  - conversion-engine
+  - pdf
+  - rendition
+  - alfresco
+  - cmis
+  - rust
+home: https://github.com/oxid/oxid
+maintainers:
+  - name: Oxid Contributors
+    email: contact@oxid.io

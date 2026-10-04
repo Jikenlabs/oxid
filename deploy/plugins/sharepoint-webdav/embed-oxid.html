@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Intégration Oxid SharePoint & WebDAV</title>
+  <style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+    #viewerContainer { width: 100%; height: 100vh; }
+  </style>
+  <!-- 1. Import du Web Component léger ESM Oxid (17 Ko gzip) -->
+  <script type="module" src="http://localhost:8080/oxid-viewer.es.js"></script>
+</head>
+<body>
+  <div id="viewerContainer">
+    <!-- 2. Balise Web Component autonome avec connecteur SharePoint / WebDAV -->
+    <oxid-viewer 
+      id="spViewer" 
+      connector="webdav" 
+      src="" 
+      style="width: 100%; height: 100%;">
+    </oxid-viewer>
+  </div>
+
+  <script>
+    // 3. Récupération des paramètres SharePoint ou WebDAV
+    const urlParams = new URLSearchParams(window.location.search);
+    const fileUrl = urlParams.get('fileUrl') || urlParams.get('url');
+    const token = urlParams.get('token') || urlParams.get('sp_auth');
+
+    const viewer = document.getElementById('spViewer');
+
+    if (fileUrl) {
+      // Chargement direct du document avec passage du jeton d'authentification
+      viewer.setAttribute('src', fileUrl);
+      if (token) {
+        viewer.setAttribute('token', token);
+      }
+    }
+
+    // Écoute des événements de signature ou d'annotations pour synchroniser avec SharePoint
+    const handleSave = (event) => {
+      console.log('Annotations synchronisées avec succès:', event.detail);
+    };
+    window.addEventListener('oxid:annotation-saved', handleSave);
+    window.addEventListener('oxidrender:annotation-saved', handleSave);
+  </script>
+</body>
+</html>

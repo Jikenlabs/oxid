@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+CONTAINER_NAME="oxid-gotenberg"
+
+if docker ps --format '{{.Names}}' | grep -qE "^(oxid-gotenberg|oxidrender-gotenberg)$"; then
+    RUNNING_NAME=$(docker ps --format '{{.Names}}' | grep -E "^(oxid-gotenberg|oxidrender-gotenberg)$" | head -n 1)
+    CURRENT_DIR="$(pwd)"
+    exec docker exec -w "${CURRENT_DIR}" "$RUNNING_NAME" libreoffice "$@"
+else
+    CURRENT_DIR="$(pwd)"
+    exec docker run --rm -v "${CURRENT_DIR}:${CURRENT_DIR}" -w "${CURRENT_DIR}" gotenberg/gotenberg:8 libreoffice "$@"
+fi

@@ -1,0 +1,35 @@
+# Build outputs
+/target/
+/backend/target/
+/frontend/dist/
+/frontend/node_modules/
+
+# Runtime data & User documents (Zero-retention / Security)
+/data/
+!/data/documents/.gitkeep
+!/data/cache/.gitkeep
+/backend/data/
+
+# Temporary work files & scratch
+/scratch/
+!/scratch/.gitkeep
+*.docx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.log
+.DS_Store
+*.tmp
+
+# Documentation assets whitelist (MUST be after generic extensions)
+!docs/
+!docs/images/
+!docs/images/*
+!docs/images/**/*
+
+# Test samples whitelist
+!test_files/
+!test_files/**
+

@@ -1,0 +1,3664 @@
+var Ue = Object.defineProperty;
+var Ze = (A, t, e) => t in A ? Ue(A, t, { enumerable: !0, configurable: !0, writable: !0, value: e }) : A[t] = e;
+var g = (A, t, e) => Ze(A, typeof t != "symbol" ? t + "" : t, e);
+class Ge {
+  constructor(t, e, i, o, a) {
+    g(this, "container");
+    g(this, "pageCard");
+    g(this, "pageNumber");
+    g(this, "scale", 1);
+    g(this, "currentTool", "select");
+    g(this, "annotations", []);
+    g(this, "isMouseDown", !1);
+    g(this, "startX", 0);
+    g(this, "startY", 0);
+    g(this, "previewBox", null);
+    g(this, "activePopover", null);
+    g(this, "onAnnotationCreated");
+    g(this, "onAnnotationDeleted");
+    g(this, "onAnnotationUpdated");
+    this.container = t, this.pageCard = t.parentElement || t, this.pageNumber = e, this.onAnnotationCreated = i, this.onAnnotationDeleted = o, this.onAnnotationUpdated = a, this.container.style.pointerEvents = "none", this.setupEvents(), this.setTool(this.currentTool);
+  }
+  setTool(t) {
+    this.currentTool = t, this.closeActivePopover(), this.currentTool === "note" ? this.pageCard.style.cursor = "crosshair" : this.currentTool === "highlight" ? this.pageCard.style.cursor = "text" : this.currentTool === "redact" ? this.pageCard.style.cursor = "crosshair" : this.pageCard.style.cursor = "default";
+  }
+  setScale(t) {
+    this.scale = t, this.redraw();
+  }
+  setAnnotations(t) {
+    this.annotations = t.filter((e) => e.page_number === this.pageNumber), this.redraw();
+  }
+  getAnnotations() {
+    return this.annotations;
+  }
+  addAnnotation(t) {
+    var e;
+    this.annotations.push(t), this.redraw(), (e = this.onAnnotationCreated) == null || e.call(this, t);
+  }
+  removeAnnotation(t) {
+    var e;
+    this.annotations = this.annotations.filter((i) => i.id !== t), this.redraw(), (e = this.onAnnotationDeleted) == null || e.call(this, t);
+  }
+  updateAnnotation(t) {
+    var i;
+    const e = this.annotations.findIndex((o) => o.id === t.id);
+    e !== -1 && (this.annotations[e] = t, this.redraw(), (i = this.onAnnotationUpdated) == null || i.call(this, t));
+  }
+  closeActivePopover() {
+    this.activePopover && (this.activePopover.remove(), this.activePopover = null);
+  }
+  setupEvents() {
+    this.pageCard.addEventListener("mousedown", (t) => {
+      if (t.target.closest(".annot-popover-card") || t.target.closest(".annot-delete-pill") || (this.closeActivePopover(), this.currentTool === "select")) return;
+      const e = this.pageCard.getBoundingClientRect();
+      this.startX = t.clientX - e.left, this.startY = t.clientY - e.top, this.currentTool !== "note" && (this.currentTool === "highlight" || this.currentTool === "redact") && (this.isMouseDown = !0, this.previewBox = document.createElement("div"), this.previewBox.className = this.currentTool === "redact" ? "annot-preview-redact" : "annot-preview-highlight", this.previewBox.style.left = `${this.startX}px`, this.previewBox.style.top = `${this.startY}px`, this.pageCard.appendChild(this.previewBox));
+    }), window.addEventListener("mousemove", (t) => {
+      if (!this.isMouseDown || !this.previewBox) return;
+      const e = this.pageCard.getBoundingClientRect(), i = Math.max(0, Math.min(e.width, t.clientX - e.left)), o = Math.max(0, Math.min(e.height, t.clientY - e.top)), a = Math.min(this.startX, i), n = Math.min(this.startY, o), s = Math.abs(i - this.startX), c = Math.abs(o - this.startY);
+      this.previewBox.style.left = `${a}px`, this.previewBox.style.top = `${n}px`, this.previewBox.style.width = `${s}px`, this.previewBox.style.height = `${c}px`;
+    }), window.addEventListener("mouseup", (t) => {
+      if (this.currentTool === "note") {
+        const l = this.pageCard.getBoundingClientRect();
+        if (t.clientX >= l.left && t.clientX <= l.right && t.clientY >= l.top && t.clientY <= l.bottom && !t.target.closest(".annot-note-pin") && !t.target.closest(".annot-popover-card")) {
+          const p = t.clientX - l.left, m = t.clientY - l.top;
+          this.openNoteCreatePopover(p, m);
+        }
+        return;
+      }
+      if (!this.isMouseDown) return;
+      this.isMouseDown = !1, this.previewBox && (this.previewBox.remove(), this.previewBox = null);
+      const e = window.getSelection();
+      if ((e ? e.toString().trim() : "").length > 0 && e && e.rangeCount > 0) {
+        const l = e.getRangeAt(0);
+        this.createAnnotationsFromSelectionRange(l, this.currentTool), e.removeAllRanges();
+        return;
+      }
+      const o = this.pageCard.getBoundingClientRect(), a = Math.max(0, Math.min(o.width, t.clientX - o.left)), n = Math.max(0, Math.min(o.height, t.clientY - o.top)), s = Math.min(this.startX, a), c = Math.min(this.startY, n), r = Math.abs(a - this.startX), d = Math.abs(n - this.startY);
+      if (r > 8 && d > 8) {
+        const l = this.currentTool === "redact" ? "redact" : "highlight", p = {
+          id: crypto.randomUUID(),
+          page_number: this.pageNumber,
+          annotation_type: l,
+          x: s / this.scale,
+          y: c / this.scale,
+          width: r / this.scale,
+          height: d / this.scale,
+          color: l === "redact" ? "#000000" : "#fef08a",
+          opacity: l === "redact" ? 1 : 0.45,
+          author: "Utilisateur",
+          created_at: (/* @__PURE__ */ new Date()).toISOString(),
+          reason: l === "redact" ? "RGPD" : void 0
+        };
+        this.addAnnotation(p);
+      }
+    });
+  }
+  createAnnotationsFromSelectionRange(t, e) {
+    var c;
+    const i = this.pageCard.getBoundingClientRect(), o = Array.from(t.getClientRects()), a = [], n = [];
+    for (const r of o) {
+      if (r.right <= i.left || r.left >= i.right || r.bottom <= i.top || r.top >= i.bottom || r.width < 2 || r.height < 2) continue;
+      const d = Math.max(0, r.left - i.left) / this.scale, l = Math.max(0, r.top - i.top) / this.scale, p = r.width / this.scale, m = r.height / this.scale;
+      n.push({ x: d, y: l, width: p, height: m });
+    }
+    const s = this.mergeLineRects(n);
+    for (const r of s) {
+      const d = {
+        id: crypto.randomUUID(),
+        page_number: this.pageNumber,
+        annotation_type: e,
+        x: r.x,
+        y: r.y,
+        width: r.width,
+        height: r.height,
+        color: e === "redact" ? "#000000" : "#fef08a",
+        opacity: e === "redact" ? 1 : 0.45,
+        author: "Utilisateur",
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        reason: e === "redact" ? "RGPD" : void 0
+      };
+      this.annotations.push(d), a.push(d), (c = this.onAnnotationCreated) == null || c.call(this, d);
+    }
+    return a.length > 0 && this.redraw(), a;
+  }
+  mergeLineRects(t) {
+    if (t.length <= 1) return t;
+    t.sort((o, a) => Math.abs(o.y - a.y) < 4 ? o.x - a.x : o.y - a.y);
+    const e = [];
+    let i = { ...t[0] };
+    for (let o = 1; o < t.length; o++) {
+      const a = t[o], n = Math.abs(i.y - a.y) < 6 && Math.abs(i.height - a.height) < 6, s = a.x <= i.x + i.width + 6;
+      if (n && s) {
+        const c = Math.max(i.x + i.width, a.x + a.width);
+        i.width = c - i.x;
+      } else
+        e.push(i), i = { ...a };
+    }
+    return e.push(i), e;
+  }
+  openNoteCreatePopover(t, e, i) {
+    this.closeActivePopover();
+    const o = document.createElement("div");
+    o.className = "annot-popover-card", o.style.left = `${Math.min(t, this.pageCard.clientWidth - 260)}px`, o.style.top = `${Math.min(e, this.pageCard.clientHeight - 180)}px`, o.innerHTML = `
+      <div class="annot-popover-header">
+        <div class="annot-popover-title">📝 Nouvelle note</div>
+        <button class="annot-popover-close">✕</button>
+      </div>
+      <textarea class="annot-popover-input" placeholder="Saisissez votre note ou commentaire..." rows="3">${i || ""}</textarea>
+      <div class="annot-popover-actions">
+        <button class="annot-btn-cancel">Annuler</button>
+        <button class="annot-btn-save">Enregistrer</button>
+      </div>
+    `;
+    const a = o.querySelector(".annot-popover-close"), n = o.querySelector(".annot-btn-cancel"), s = o.querySelector(".annot-btn-save"), c = o.querySelector(".annot-popover-input");
+    a.onclick = (r) => {
+      r.stopPropagation(), this.closeActivePopover();
+    }, n.onclick = (r) => {
+      r.stopPropagation(), this.closeActivePopover();
+    }, s.onclick = (r) => {
+      r.stopPropagation();
+      const d = c.value.trim();
+      if (d) {
+        const l = {
+          id: crypto.randomUUID(),
+          page_number: this.pageNumber,
+          annotation_type: "note",
+          x: t / this.scale,
+          y: e / this.scale,
+          width: 26,
+          height: 26,
+          color: "#f59e0b",
+          opacity: 1,
+          author: "Utilisateur",
+          created_at: (/* @__PURE__ */ new Date()).toISOString(),
+          content: d
+        };
+        this.addAnnotation(l);
+      }
+      this.closeActivePopover();
+    }, this.pageCard.appendChild(o), this.activePopover = o, setTimeout(() => c.focus(), 50);
+  }
+  openNoteViewPopover(t, e) {
+    this.closeActivePopover();
+    const i = e.getBoundingClientRect(), o = this.pageCard.getBoundingClientRect(), a = i.left - o.left, n = i.top - o.top + 30, s = document.createElement("div");
+    s.className = "annot-popover-card", s.style.left = `${Math.min(a, this.pageCard.clientWidth - 260)}px`, s.style.top = `${Math.min(n, this.pageCard.clientHeight - 180)}px`;
+    const c = new Date(t.created_at).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    s.innerHTML = `
+      <div class="annot-popover-header">
+        <div class="annot-popover-title">📝 Note (${this.escapeHtml(t.author)})</div>
+        <button class="annot-popover-close">✕</button>
+      </div>
+      <div class="annot-popover-meta">${c}</div>
+      <div class="annot-popover-body">${this.escapeHtml(t.content || "(Vide)")}</div>
+      <div class="annot-popover-actions">
+        <button class="annot-btn-delete">🗑 Supprimer</button>
+        <button class="annot-btn-edit">✏️ Modifier</button>
+      </div>
+    `;
+    const r = s.querySelector(".annot-popover-close"), d = s.querySelector(".annot-btn-delete"), l = s.querySelector(".annot-btn-edit");
+    r.onclick = (p) => {
+      p.stopPropagation(), this.closeActivePopover();
+    }, d.onclick = (p) => {
+      p.stopPropagation(), this.removeAnnotation(t.id), this.closeActivePopover();
+    }, l.onclick = (p) => {
+      p.stopPropagation();
+      const m = t.content || "";
+      s.innerHTML = `
+        <div class="annot-popover-header">
+          <div class="annot-popover-title">✏️ Modifier la note</div>
+          <button class="annot-popover-close">✕</button>
+        </div>
+        <textarea class="annot-popover-input" rows="3">${this.escapeHtml(m)}</textarea>
+        <div class="annot-popover-actions">
+          <button class="annot-btn-cancel">Annuler</button>
+          <button class="annot-btn-save">Enregistrer</button>
+        </div>
+      `;
+      const f = s.querySelector(".annot-popover-close"), u = s.querySelector(".annot-btn-cancel"), b = s.querySelector(".annot-btn-save"), w = s.querySelector(".annot-popover-input");
+      f.onclick = (k) => {
+        k.stopPropagation(), this.closeActivePopover();
+      }, u.onclick = (k) => {
+        k.stopPropagation(), this.closeActivePopover();
+      }, b.onclick = (k) => {
+        k.stopPropagation(), t.content = w.value.trim(), this.updateAnnotation(t), this.closeActivePopover();
+      }, setTimeout(() => w.focus(), 50);
+    }, this.pageCard.appendChild(s), this.activePopover = s;
+  }
+  showDeletePill(t, e) {
+    this.closeActivePopover();
+    const i = document.createElement("div");
+    i.className = "annot-delete-pill";
+    const o = e.getBoundingClientRect(), a = this.pageCard.getBoundingClientRect();
+    i.style.left = `${o.left - a.left + o.width / 2 - 40}px`, i.style.top = `${o.top - a.top - 32}px`, i.innerHTML = "<span>🗑 Supprimer</span>", i.onclick = (s) => {
+      s.stopPropagation(), this.removeAnnotation(t.id), i.remove();
+    }, this.pageCard.appendChild(i), this.activePopover = i;
+    const n = (s) => {
+      i.contains(s.target) || (i.remove(), document.removeEventListener("mousedown", n));
+    };
+    setTimeout(() => document.addEventListener("mousedown", n), 50);
+  }
+  escapeHtml(t) {
+    return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+  redraw() {
+    this.container.innerHTML = "";
+    for (const t of this.annotations) {
+      const e = document.createElement("div"), i = t.x * this.scale, o = t.y * this.scale, a = t.width * this.scale, n = t.height * this.scale;
+      e.style.left = `${i}px`, e.style.top = `${o}px`, t.annotation_type === "note" ? (e.className = "annot-note-pin", e.title = `${t.author}: ${t.content || ""}`, e.textContent = "📝", e.onclick = (s) => {
+        s.stopPropagation(), this.openNoteViewPopover(t, e);
+      }) : t.annotation_type === "redact" ? (e.className = "annot-redaction", e.style.width = `${a}px`, e.style.height = `${n}px`, e.textContent = t.reason || "BIFFÉ", e.title = "Cliquez pour supprimer cette biffure", e.onclick = (s) => {
+        s.stopPropagation(), this.showDeletePill(t, e);
+      }) : (e.className = "annot-highlight", e.style.width = `${a}px`, e.style.height = `${n}px`, e.title = "Cliquez pour supprimer ce surlignage", e.onclick = (s) => {
+        s.stopPropagation(), this.showDeletePill(t, e);
+      }), this.container.appendChild(e);
+    }
+  }
+}
+class Ye {
+  constructor(t, e, i, o) {
+    g(this, "docA");
+    g(this, "modal");
+    g(this, "container");
+    g(this, "statsEl");
+    g(this, "docBMeta", null);
+    g(this, "currentPage", 1);
+    g(this, "totalPages", 1);
+    g(this, "diffCache", /* @__PURE__ */ new Map());
+    g(this, "textDiffCache", /* @__PURE__ */ new Map());
+    g(this, "isContinuous", !1);
+    g(this, "isScanning", !1);
+    g(this, "diffMode", "visual");
+    this.docA = t, this.modal = e, this.container = i, this.statsEl = o;
+  }
+  async runComparison(t) {
+    this.statsEl.textContent = "Téléversement du second document...", this.diffCache.clear(), this.textDiffCache.clear(), this.currentPage = 1;
+    const e = this.modal.querySelector("#compareNavToolbar");
+    e && (e.style.display = "none");
+    const i = new FormData();
+    i.append("file", t);
+    try {
+      const o = await fetch("/api/documents", {
+        method: "POST",
+        body: i
+      });
+      if (!o.ok) {
+        this.statsEl.textContent = "Échec du téléversement du second document.";
+        return;
+      }
+      this.docBMeta = await o.json(), this.totalPages = Math.max(this.docA.page_count || 1, this.docBMeta.page_count || 1), this.setupNavToolbar(), await this.goToPage(1), this.totalPages > 1 && this.scanAllPages();
+    } catch (o) {
+      this.statsEl.textContent = `Erreur: ${o}`;
+    }
+  }
+  setupNavToolbar() {
+    const t = this.modal.querySelector("#compareNavToolbar");
+    if (!t) return;
+    t.style.display = "flex";
+    const e = this.modal.querySelector("#compareTotalPagesLabel");
+    e && (e.textContent = this.totalPages.toString());
+    const i = this.modal.querySelector("#btnComparePrevPage"), o = this.modal.querySelector("#btnCompareNextPage"), a = this.modal.querySelector("#btnCompareAllPages"), n = this.modal.querySelector("#btnToggleContinuousDiff"), s = this.modal.querySelector("#btnModeVisualDiff"), c = this.modal.querySelector("#btnModeTextDiff");
+    s && c && (s.onclick = () => {
+      this.diffMode !== "visual" && (this.diffMode = "visual", s.classList.add("active"), c.classList.remove("active"), this.goToPage(this.currentPage));
+    }, c.onclick = () => {
+      this.diffMode !== "text" && (this.diffMode = "text", c.classList.add("active"), s.classList.remove("active"), this.goToPage(this.currentPage));
+    }), i && (i.onclick = () => this.goToPage(this.currentPage - 1)), o && (o.onclick = () => this.goToPage(this.currentPage + 1)), a && (a.onclick = () => this.scanAllPages()), n && (n.onclick = () => this.toggleContinuous(), n.textContent = this.isContinuous ? "Vue Page par Page" : "Vue continue"), this.renderPageChips();
+  }
+  renderPageChips() {
+    const t = this.modal.querySelector("#comparePageChips");
+    if (t) {
+      t.innerHTML = "";
+      for (let e = 1; e <= this.totalPages; e++) {
+        const i = document.createElement("button");
+        i.className = "btn", i.style.fontSize = "11px", i.style.padding = "3px 8px", i.style.display = "flex", i.style.alignItems = "center", i.style.gap = "4px", i.dataset.page = e.toString(), e === this.currentPage && !this.isContinuous && (i.style.borderColor = "var(--accent)", i.style.background = "var(--accent)", i.style.color = "white");
+        const o = this.diffCache.get(e);
+        let a = "";
+        if (o) {
+          const n = (o.diffRatio * 100).toFixed(1);
+          a = o.hasDiff ? ` <span style="color: #f87171; font-weight: bold;">(${n}%)</span>` : ' <span style="color: #34d399;">(0%)</span>';
+        }
+        i.innerHTML = `P.${e}${a}`, i.onclick = () => {
+          if (this.isContinuous) {
+            this.isContinuous = !1;
+            const n = this.modal.querySelector("#btnToggleContinuousDiff");
+            n && (n.textContent = "Vue continue");
+          }
+          this.goToPage(e);
+        }, t.appendChild(i);
+      }
+    }
+  }
+  async goToPage(t) {
+    if (t < 1 || t > this.totalPages) return;
+    this.currentPage = t;
+    const e = this.modal.querySelector("#compareCurrentPageLabel");
+    e && (e.textContent = t.toString());
+    const i = this.modal.querySelector("#btnComparePrevPage"), o = this.modal.querySelector("#btnCompareNextPage");
+    i && (i.disabled = t <= 1), o && (o.disabled = t >= this.totalPages), this.renderPageChips(), this.isContinuous ? this.renderContinuousView() : this.diffMode === "text" ? await this.loadPageTextDiff(t) : await this.loadPageDiff(t);
+  }
+  async fetchPageDiff(t) {
+    if (this.diffCache.has(t))
+      return this.diffCache.get(t);
+    try {
+      const e = await fetch("/api/documents/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_a_id: this.docA.id,
+          doc_b_id: this.docBMeta.id,
+          page_number: t,
+          mode: "visual"
+        })
+      });
+      if (!e.ok) return null;
+      const i = parseFloat(e.headers.get("X-Diff-Ratio") || "0"), o = e.headers.get("X-Has-Differences") === "true", a = await e.blob(), s = { imgUrl: URL.createObjectURL(a), diffRatio: i, hasDiff: o };
+      return this.diffCache.set(t, s), s;
+    } catch {
+      return null;
+    }
+  }
+  async fetchTextDiff(t) {
+    if (this.textDiffCache.has(t))
+      return this.textDiffCache.get(t);
+    try {
+      const e = await fetch("/api/documents/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_a_id: this.docA.id,
+          doc_b_id: this.docBMeta.id,
+          page_number: t,
+          mode: "text"
+        })
+      });
+      if (!e.ok) return null;
+      const i = await e.json();
+      return this.textDiffCache.set(t, i), i;
+    } catch {
+      return null;
+    }
+  }
+  async loadPageDiff(t) {
+    this.statsEl.textContent = `Calcul du différentiel visuel page ${t} / ${this.totalPages}...`;
+    const e = await this.fetchPageDiff(t);
+    if (!e) {
+      this.statsEl.textContent = `Erreur lors de la comparaison visuelle de la page ${t}.`;
+      return;
+    }
+    const i = (e.diffRatio * 100).toFixed(2);
+    this.statsEl.textContent = e.hasDiff ? `Page ${t} : ⚠️ ${i}% de variation (Vert = Ajouté, Rouge = Supprimé)` : `Page ${t} : ✅ 100% identique (0% de différence)`, this.statsEl.style.color = e.hasDiff ? "var(--warning)" : "var(--success)", this.container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+        <img src="${e.imgUrl}" style="max-width: 100%; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);" alt="Diff page ${t}">
+      </div>
+    `, this.renderPageChips();
+  }
+  async loadPageTextDiff(t) {
+    this.statsEl.textContent = `Calcul du différentiel sémantique page ${t} / ${this.totalPages}...`;
+    const e = await this.fetchTextDiff(t);
+    if (!e) {
+      this.statsEl.textContent = `Erreur lors de l'analyse sémantique de la page ${t}.`;
+      return;
+    }
+    const i = e.additions_count + e.deletions_count > 0, o = (e.diff_ratio * 100).toFixed(1);
+    this.statsEl.textContent = i ? `Page ${t} : ⚠️ Diff Sémantique (${o}% de variation, +${e.additions_count} mots ajoutés, -${e.deletions_count} mots supprimés)` : `Page ${t} : ✅ 100% de concordance sémantique (aucun mot modifié)`, this.statsEl.style.color = i ? "var(--warning)" : "var(--success)";
+    let a = "";
+    for (const n of e.tokens) {
+      const s = n.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+      n.op === "insert" ? a += `<ins style="background: rgba(34, 197, 94, 0.25); color: #4ade80; text-decoration: none; padding: 2px 5px; border-radius: 4px; font-weight: 600; border-bottom: 2px solid #22c55e;">${s}</ins>` : n.op === "delete" ? a += `<del style="background: rgba(239, 68, 68, 0.25); color: #f87171; text-decoration: line-through; padding: 2px 5px; border-radius: 4px; font-weight: 500; border-bottom: 2px solid #ef4444;">${s}</del>` : a += `<span style="color: #cbd5e1;">${s}</span>`;
+    }
+    this.container.innerHTML = `
+      <div style="max-width: 850px; margin: 0 auto; background: var(--bg-primary, #0f172a); border: 1px solid var(--border); border-radius: 8px; padding: 24px; text-align: left; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
+        <div style="display: flex; gap: 12px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+          <span style="font-size: 12px; background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); font-weight: 600;">
+            +${e.additions_count} ajout(s)
+          </span>
+          <span style="font-size: 12px; background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 600;">
+            -${e.deletions_count} suppression(s)
+          </span>
+          <span style="font-size: 12px; background: rgba(148, 163, 184, 0.15); color: #cbd5e1; padding: 3px 10px; border-radius: 12px;">
+            ${e.unchanged_count} mot(s) inchangé(s)
+          </span>
+        </div>
+        <div style="font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-word;">
+          ${a || '<em style="color: #64748b;">(Page sans texte détecté)</em>'}
+        </div>
+      </div>
+    `, this.renderPageChips();
+  }
+  async scanAllPages() {
+    if (this.isScanning) return;
+    this.isScanning = !0;
+    const t = this.modal.querySelector("#btnCompareAllPages");
+    t && (t.disabled = !0, t.textContent = "⏳ Scan en cours...");
+    let e = 0;
+    for (let i = 1; i <= this.totalPages; i++) {
+      const o = await this.fetchPageDiff(i);
+      o && o.hasDiff && e++, this.renderPageChips();
+    }
+    t && (t.disabled = !1, t.textContent = "⚡ Re-scanner"), this.isScanning = !1, e > 0 ? (this.statsEl.textContent = `⚠️ Différences détectées sur ${e} page(s) sur ${this.totalPages} au total.`, this.statsEl.style.color = "var(--warning)") : (this.statsEl.textContent = `✅ Document entier identique : 0% de différence sur les ${this.totalPages} page(s).`, this.statsEl.style.color = "var(--success)"), this.isContinuous && this.renderContinuousView();
+  }
+  toggleContinuous() {
+    this.isContinuous = !this.isContinuous;
+    const t = this.modal.querySelector("#btnToggleContinuousDiff");
+    t && (t.textContent = this.isContinuous ? "Vue Page par Page" : "Vue continue"), this.isContinuous ? this.renderContinuousView() : this.goToPage(this.currentPage);
+  }
+  async renderContinuousView() {
+    this.container.innerHTML = '<div style="color: #bbb; padding: 20px;">Chargement de toutes les pages...</div>';
+    const t = document.createDocumentFragment();
+    for (let e = 1; e <= this.totalPages; e++) {
+      const i = document.createElement("div");
+      i.style.cssText = "margin-bottom: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px;";
+      const o = document.createElement("div");
+      if (o.style.cssText = "font-size: 13px; font-weight: 600; color: #eee; display: flex; gap: 8px; align-items: center;", this.diffMode === "text") {
+        const a = await this.fetchTextDiff(e);
+        if (a) {
+          const n = a.additions_count + a.deletions_count > 0, s = n ? "#f87171" : "#34d399", c = n ? `+${a.additions_count} / -${a.deletions_count}` : "✅ Identique";
+          o.innerHTML = `<span>Page ${e} / ${this.totalPages}</span> <span style="font-size: 11px; background: rgba(0,0,0,0.5); color: ${s}; padding: 2px 8px; border-radius: 4px;">${c}</span>`;
+          const r = document.createElement("div");
+          r.style.cssText = "width: 100%; max-width: 850px; background: var(--bg-primary, #0f172a); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: left; font-family: monospace; font-size: 13px; line-height: 1.7; white-space: pre-wrap;";
+          let d = "";
+          for (const l of a.tokens) {
+            const p = l.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+            l.op === "insert" ? d += `<ins style="background: rgba(34, 197, 94, 0.25); color: #4ade80; text-decoration: none; padding: 2px 4px; border-radius: 3px; font-weight: 600;">${p}</ins>` : l.op === "delete" ? d += `<del style="background: rgba(239, 68, 68, 0.25); color: #f87171; text-decoration: line-through; padding: 2px 4px; border-radius: 3px;">${p}</del>` : d += `<span style="color: #cbd5e1;">${p}</span>`;
+          }
+          r.innerHTML = d || '<em style="color: #64748b;">(Page sans texte)</em>', i.appendChild(o), i.appendChild(r);
+        }
+      } else {
+        const a = await this.fetchPageDiff(e);
+        if (a) {
+          const n = (a.diffRatio * 100).toFixed(2), s = a.hasDiff ? "#f87171" : "#34d399", c = a.hasDiff ? `⚠️ ${n}% de variation` : "✅ Identique";
+          o.innerHTML = `<span>Page ${e} / ${this.totalPages}</span> <span style="font-size: 11px; background: rgba(0,0,0,0.5); color: ${s}; padding: 2px 8px; border-radius: 4px;">${c}</span>`;
+          const r = document.createElement("img");
+          r.src = a.imgUrl, r.style.cssText = "max-width: 100%; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);", r.alt = `Diff Page ${e}`, i.appendChild(o), i.appendChild(r);
+        }
+      }
+      t.appendChild(i);
+    }
+    this.container.innerHTML = "", this.container.appendChild(t);
+  }
+}
+class Ne {
+  constructor(t, e, i) {
+    g(this, "docId");
+    g(this, "pages", []);
+    g(this, "onDocumentBuilt");
+    if (this.docId = t, this.onDocumentBuilt = i, Array.isArray(e))
+      for (const o of e)
+        this.pages.push({
+          pageNumber: o.page_number,
+          width: o.width || 595,
+          height: o.height || 842,
+          rotation: 0,
+          deleted: !1
+        });
+    else
+      for (let o = 1; o <= e; o++)
+        this.pages.push({
+          pageNumber: o,
+          width: 595,
+          height: 842,
+          rotation: 0,
+          deleted: !1
+        });
+  }
+  render(t) {
+    t.innerHTML = "", this.pages.filter((e) => !e.deleted).length;
+    for (const e of this.pages) {
+      const i = document.createElement("div");
+      i.className = "builder-item", e.deleted && i.classList.add("builder-item-deleted");
+      const o = e.rotation % 360, a = o === 90 || o === 270, n = e.width && e.height ? e.width / e.height : 0.707, s = a ? 1 / n : n;
+      let c = 120, r = 120;
+      s >= 1 ? (c = 150, r = Math.max(70, Math.round(150 / s))) : (r = 160, c = Math.max(70, Math.round(160 * s)));
+      const d = document.createElement("div");
+      d.className = "builder-thumb", d.style.width = `${c}px`, d.style.height = `${r}px`, d.style.position = "relative";
+      const l = document.createElement("img");
+      if (l.src = `/api/documents/${this.docId}/pages/${e.pageNumber}/thumbnail`, l.alt = `Page ${e.pageNumber}`, l.loading = "lazy", l.style.transition = "transform 0.2s ease", a ? (l.style.width = `${r}px`, l.style.height = `${c}px`, l.style.transform = `rotate(${o}deg)`, l.style.position = "absolute") : (l.style.width = `${c}px`, l.style.height = `${r}px`, l.style.transform = o === 180 ? "rotate(180deg)" : "none", l.style.position = "relative"), d.appendChild(l), e.deleted) {
+        const u = document.createElement("div");
+        u.className = "builder-deleted-overlay", u.innerHTML = "<span>🗑️ Supprimée</span>", d.appendChild(u);
+      }
+      const p = document.createElement("div");
+      p.className = "builder-label-row";
+      const m = document.createElement("span");
+      if (m.className = "builder-page-label", m.textContent = `Page ${e.pageNumber}`, p.appendChild(m), e.rotation > 0) {
+        const u = document.createElement("span");
+        u.className = "builder-rot-badge", u.textContent = `↻ ${e.rotation}°`, p.appendChild(u);
+      }
+      const f = document.createElement("div");
+      if (f.className = "builder-actions", e.deleted) {
+        const u = document.createElement("button");
+        u.className = "builder-btn builder-btn-restore", u.textContent = "↩ Restaurer", u.title = "Restaurer cette page dans le document", u.onclick = () => {
+          e.deleted = !1, this.render(t);
+        }, f.appendChild(u);
+      } else {
+        const u = document.createElement("button");
+        u.className = "builder-btn", u.textContent = "↻ 90°", u.title = "Faire pivoter de 90° dans le sens horaire", u.onclick = () => {
+          e.rotation = (e.rotation + 90) % 360, this.render(t);
+        };
+        const b = document.createElement("button");
+        b.className = "builder-btn builder-btn-danger", b.textContent = "🗑", b.title = "Supprimer cette page", b.onclick = () => {
+          e.deleted = !0, this.render(t);
+        }, f.appendChild(u), f.appendChild(b);
+      }
+      i.appendChild(d), i.appendChild(p), i.appendChild(f), t.appendChild(i);
+    }
+  }
+  async applyBuild(t) {
+    if (this.pages.filter((a) => !a.deleted).length === 0) {
+      alert("Toutes les pages ont été supprimées. Au moins une page doit être conservée.");
+      return;
+    }
+    const i = [];
+    for (const a of this.pages)
+      a.deleted ? i.push({
+        action: "delete",
+        page_number: a.pageNumber
+      }) : a.rotation !== 0 && i.push({
+        action: "rotate",
+        page_number: a.pageNumber,
+        degrees: a.rotation
+      });
+    const o = {
+      source_document_ids: [this.docId],
+      page_actions: i,
+      watermark: t != null && t.trim() ? {
+        text: t.trim(),
+        opacity: 0.3,
+        font_size: 36,
+        rotation: 45,
+        color: "#888888"
+      } : null
+    };
+    try {
+      const a = await fetch("/api/documents/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(o)
+      });
+      if (!a.ok) {
+        const s = await a.text();
+        alert(`Erreur lors de la génération du document : ${s}`);
+        return;
+      }
+      const n = await a.json();
+      alert(`Document assemblé avec succès ! (${n.page_count} page(s), ID: ${n.id})`), this.onDocumentBuilt(n.id);
+    } catch (a) {
+      alert(`Erreur: ${a}`);
+    }
+  }
+}
+class Xe {
+  constructor(t) {
+    g(this, "container");
+    g(this, "spans", []);
+    g(this, "scale", 1);
+    this.container = t;
+  }
+  async loadText(t, e, i, o, a) {
+    try {
+      const n = await fetch(`/api/documents/${t}/pages/${e}/text`);
+      if (!n.ok) return;
+      const s = await n.json();
+      this.spans = s.spans, this.scale = a / i, this.render();
+    } catch (n) {
+      console.warn("Text layer loading skipped", n);
+    }
+  }
+  updateScale(t) {
+    this.scale = t, this.render();
+  }
+  render() {
+    this.container.innerHTML = "";
+    const t = document.createDocumentFragment(), e = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', i = typeof document < "u" ? document.createElement("canvas") : null, o = i == null ? void 0 : i.getContext("2d");
+    for (let a = 0; a < this.spans.length; a++) {
+      const n = this.spans[a], s = document.createElement("span");
+      s.textContent = n.text;
+      const c = n.x * this.scale, r = n.y * this.scale, d = n.width * this.scale, l = n.height * this.scale;
+      s.style.left = `${c}px`, s.style.top = `${r}px`, s.style.height = `${l}px`, s.style.lineHeight = `${l}px`, s.style.transformOrigin = "0% 0%";
+      const p = Math.max(8, l * 0.78);
+      if (s.style.fontSize = `${p}px`, s.style.fontFamily = e, o && d > 0) {
+        o.font = `${p}px ${e}`;
+        const m = o.measureText(n.text).width;
+        if (m > 0) {
+          const f = d / m;
+          s.style.transform = `scaleX(${f.toFixed(4)})`;
+        }
+      }
+      t.appendChild(s);
+    }
+    this.container.appendChild(t);
+  }
+  highlightSearch(t) {
+    var a;
+    const e = [], i = t.toLowerCase(), o = this.container.children;
+    for (let n = 0; n < o.length; n++) {
+      const s = o[n];
+      s.classList.remove("highlight-active"), t.trim() && ((a = s.textContent) != null && a.toLowerCase().includes(i)) ? (s.classList.add("highlight-search"), e.push(s)) : s.classList.remove("highlight-search");
+    }
+    return e;
+  }
+  clearHighlights() {
+    const t = this.container.children;
+    for (let e = 0; e < t.length; e++)
+      t[e].classList.remove("highlight-search", "highlight-active");
+  }
+}
+class Je {
+  constructor(t, e) {
+    g(this, "fields", []);
+    g(this, "fieldValues", /* @__PURE__ */ new Map());
+    g(this, "onFieldChangeCallback");
+    g(this, "onSignatureClickCallback");
+    this.onFieldChangeCallback = t, this.onSignatureClickCallback = e;
+  }
+  setFields(t) {
+    this.fields = t, this.fieldValues.clear();
+    for (const e of t)
+      if (e.field_type === "checkbox") {
+        const i = e.value === "Yes" || e.value === "true" || e.value === "1";
+        this.fieldValues.set(e.name, i ? "Yes" : "Off");
+      } else
+        this.fieldValues.set(e.name, e.value || "");
+  }
+  getFields() {
+    return this.fields;
+  }
+  getValue(t) {
+    return this.fieldValues.get(t);
+  }
+  setValue(t, e) {
+    this.fieldValues.set(t, e), document.querySelectorAll(`[data-field-name="${t}"]`).forEach((o) => {
+      o instanceof HTMLInputElement ? o.type === "checkbox" ? o.checked = e === "Yes" || e === !0 || e === "true" : o.type === "radio" ? o.checked = o.value === String(e) : o.value = String(e) : (o instanceof HTMLTextAreaElement || o instanceof HTMLSelectElement) && (o.value = String(e));
+    });
+  }
+  getAllValues() {
+    const t = {};
+    for (const [e, i] of this.fieldValues.entries())
+      t[e] = i;
+    return t;
+  }
+  render(t, e, i) {
+    let o = t.querySelector(".form-layer");
+    o || (o = document.createElement("div"), o.className = "form-layer", t.appendChild(o)), o.innerHTML = "";
+    const a = this.fields.filter((n) => n.page_number === e);
+    if (a.length === 0) {
+      o.style.display = "none";
+      return;
+    }
+    o.style.display = "block";
+    for (const n of a) {
+      const s = this.createFieldElement(n, i);
+      o.appendChild(s);
+    }
+  }
+  createFieldElement(t, e) {
+    const i = document.createElement("div");
+    i.className = `acroform-field-container acroform-type-${t.field_type}`, i.style.position = "absolute", i.style.left = `${t.x * e}px`, i.style.top = `${t.y * e}px`, i.style.width = `${Math.max(t.width * e, 16)}px`, i.style.height = `${Math.max(t.height * e, 16)}px`, i.style.zIndex = "15";
+    const o = this.fieldValues.get(t.name) ?? t.value ?? "", a = Math.max(10, Math.min(Math.round(t.height * e * 0.65), 18 * e));
+    switch (t.field_type) {
+      case "text": {
+        if (t.multiline) {
+          const n = document.createElement("textarea");
+          n.className = "acroform-field acroform-textarea", n.dataset.fieldName = t.name, n.dataset.fieldId = t.id, n.value = o, n.readOnly = t.read_only, n.required = t.required, n.style.fontSize = `${a}px`, n.addEventListener("input", (s) => {
+            var r;
+            const c = s.target.value;
+            this.fieldValues.set(t.name, c), (r = this.onFieldChangeCallback) == null || r.call(this, t, c);
+          }), i.appendChild(n);
+        } else {
+          const n = document.createElement("input");
+          n.type = "text", n.className = "acroform-field acroform-input-text", n.dataset.fieldName = t.name, n.dataset.fieldId = t.id, n.value = o, n.readOnly = t.read_only, n.required = t.required, n.style.fontSize = `${a}px`, n.addEventListener("input", (s) => {
+            var r;
+            const c = s.target.value;
+            this.fieldValues.set(t.name, c), (r = this.onFieldChangeCallback) == null || r.call(this, t, c);
+          }), i.appendChild(n);
+        }
+        break;
+      }
+      case "checkbox": {
+        const n = document.createElement("input");
+        n.type = "checkbox", n.className = "acroform-field acroform-input-checkbox", n.dataset.fieldName = t.name, n.dataset.fieldId = t.id, n.checked = o === "Yes" || o === "true" || o === !0, n.disabled = t.read_only, n.addEventListener("change", (s) => {
+          var d;
+          const r = s.target.checked ? "Yes" : "Off";
+          this.fieldValues.set(t.name, r), (d = this.onFieldChangeCallback) == null || d.call(this, t, r);
+        }), i.appendChild(n);
+        break;
+      }
+      case "radio": {
+        const n = document.createElement("input");
+        n.type = "radio", n.name = t.name, n.className = "acroform-field acroform-input-radio", n.dataset.fieldName = t.name, n.dataset.fieldId = t.id, n.value = t.id, n.checked = o === t.id || o === t.value, n.disabled = t.read_only, n.addEventListener("change", () => {
+          var s;
+          n.checked && (this.fieldValues.set(t.name, n.value), (s = this.onFieldChangeCallback) == null || s.call(this, t, n.value));
+        }), i.appendChild(n);
+        break;
+      }
+      case "choice": {
+        const n = document.createElement("select");
+        if (n.className = "acroform-field acroform-select", n.dataset.fieldName = t.name, n.dataset.fieldId = t.id, n.disabled = t.read_only, n.style.fontSize = `${a}px`, t.options && t.options.length > 0)
+          for (const s of t.options) {
+            const c = document.createElement("option");
+            c.value = s, c.textContent = s, s === o && (c.selected = !0), n.appendChild(c);
+          }
+        else if (o) {
+          const s = document.createElement("option");
+          s.value = o, s.textContent = o, s.selected = !0, n.appendChild(s);
+        }
+        n.addEventListener("change", (s) => {
+          var r;
+          const c = s.target.value;
+          this.fieldValues.set(t.name, c), (r = this.onFieldChangeCallback) == null || r.call(this, t, c);
+        }), i.appendChild(n);
+        break;
+      }
+      case "signature": {
+        const n = document.createElement("div");
+        n.className = "acroform-field acroform-signature-badge", n.title = `Champ Signature: ${t.name}`, n.innerHTML = `<span style="font-size: ${Math.max(9, a * 0.8)}px; font-weight: 600; display: flex; align-items: center; justify-content: center; height: 100%; gap: 4px; pointer-events: none;">✍️ ${t.name}</span>`, n.addEventListener("click", () => {
+          var s;
+          (s = this.onSignatureClickCallback) == null || s.call(this, t);
+        }), i.appendChild(n);
+        break;
+      }
+    }
+    return i;
+  }
+}
+class We {
+  constructor(t) {
+    g(this, "permissions", {
+      canDownload: !0,
+      canPrint: !0,
+      canRedact: !0,
+      canAnnotate: !0,
+      canSign: !0,
+      canBuild: !0,
+      canUpload: !0,
+      canRotate: !0,
+      canChangeViewMode: !0,
+      canChangeScrollMode: !0,
+      canZenMode: !0,
+      canSearch: !0,
+      readOnly: !1
+    });
+    g(this, "watermarkText", "");
+    g(this, "viewMode", "single");
+    g(this, "scrollMode", "continuous");
+    g(this, "zenMode", !1);
+    g(this, "currentDoc", null);
+    g(this, "currentZoom", 1);
+    g(this, "pageRotations", /* @__PURE__ */ new Map());
+    g(this, "defaultRotation", 0);
+    g(this, "rotateScope", "all");
+    g(this, "activePage", 1);
+    g(this, "currentTool", "select");
+    g(this, "textRenderers", /* @__PURE__ */ new Map());
+    g(this, "annotationManagers", /* @__PURE__ */ new Map());
+    g(this, "allAnnotations", []);
+    g(this, "searchMatches", []);
+    g(this, "currentSearchIndex", -1);
+    g(this, "currentPiiItems", []);
+    g(this, "isDrawing", !1);
+    g(this, "hasDrawnSignature", !1);
+    g(this, "sigCanvas", null);
+    g(this, "sigCtx", null);
+    g(this, "intersectionObserver", null);
+    g(this, "thumbIntersectionObserver", null);
+    g(this, "renderWorker", null);
+    g(this, "cachedPageBlobs", /* @__PURE__ */ new Map());
+    g(this, "cachedThumbBlobs", /* @__PURE__ */ new Map());
+    g(this, "isUploading", !1);
+    g(this, "formRenderer");
+    g(this, "currentForms", null);
+    g(this, "activeSidebarTab", "thumbnails");
+    g(this, "cadMetadata", null);
+    g(this, "activeCadLayers", /* @__PURE__ */ new Set());
+    g(this, "dicomMetadata", null);
+    g(this, "dicomWc", 40);
+    g(this, "dicomWw", 400);
+    g(this, "dicomCustomWindow", !1);
+    g(this, "dicomWindowingTimeout", null);
+    g(this, "dicomCineInterval", null);
+    // Root container (either document or specific rootEl)
+    g(this, "root", document);
+    // DOM elements
+    g(this, "docTitleEl");
+    g(this, "pageNumberInput");
+    g(this, "pageCountLabel");
+    g(this, "zoomLevelLabel");
+    g(this, "pagesContainer");
+    g(this, "emptyState");
+    g(this, "sidebarContent");
+    g(this, "loadingOverlay", null);
+    g(this, "loadingOverlayTitle", null);
+    g(this, "loadingOverlaySub", null);
+    t && (this.root = t), this.formRenderer = new Je(
+      (e, i) => {
+        this.dispatchEvent("formfieldchange", { field: e, value: i });
+      },
+      (e) => {
+        this.activePage = e.page_number, this.openSignatureDialog();
+      }
+    ), this.initElements(), this.initRenderWorker(), this.setupListeners(), this.checkUrlParams();
+  }
+  escapeHtml(t) {
+    return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+  dispatchEvent(t, e) {
+    (this.root && "dispatchEvent" in this.root ? this.root : document).dispatchEvent(new CustomEvent(t, { bubbles: !0, composed: !0, detail: e }));
+  }
+  $(t) {
+    const e = t.startsWith("#") || t.startsWith(".") || t.startsWith("[") || t.includes(" "), i = e ? t : "#" + t;
+    return this.root && "querySelector" in this.root ? this.root.querySelector(i) : e ? document.querySelector(i) : document.getElementById(t);
+  }
+  $$(t) {
+    return this.root && "querySelectorAll" in this.root ? this.root.querySelectorAll(t) : document.querySelectorAll(t);
+  }
+  initElements() {
+    this.docTitleEl = this.$("docTitle"), this.pageNumberInput = this.$("pageNumberInput"), this.pageCountLabel = this.$("pageCountLabel"), this.zoomLevelLabel = this.$("zoomLevelLabel"), this.pagesContainer = this.$("pagesContainer"), this.emptyState = this.$("emptyState"), this.sidebarContent = this.$("sidebarContent"), this.loadingOverlay = this.$("docLoadingOverlay"), this.loadingOverlayTitle = this.$("loadingOverlayTitle"), this.loadingOverlaySub = this.$("loadingOverlaySub"), this.applyPermissionsUI();
+  }
+  initRenderWorker() {
+    try {
+      this.renderWorker = new Worker(new URL(
+        /* @vite-ignore */
+        "/assets/render-worker-Bz3vIeV9.js",
+        import.meta.url
+      ), { type: "module" }), this.renderWorker.onmessage = (t) => {
+        const { type: e, pageNumber: i, blobUrl: o } = t.data;
+        if (e === "PAGE_CACHED") {
+          this.cachedPageBlobs.set(i, o);
+          const a = this.$(`page-${i}`), n = a == null ? void 0 : a.querySelector(".page-image");
+          n && !n.src.startsWith("blob:") && (n.src = o);
+        } else if (e === "THUMBNAIL_CACHED") {
+          this.cachedThumbBlobs.set(i, o);
+          const a = this.$(`thumb-${i}`), n = a == null ? void 0 : a.querySelector("img");
+          n && !n.src.startsWith("blob:") && (n.src = o);
+        }
+      };
+    } catch (t) {
+      console.warn("RenderWorker could not be started", t);
+    }
+  }
+  prefetchNearbyPages(t) {
+    if (!this.currentDoc || !this.renderWorker) return;
+    const e = [];
+    for (let i = -1; i <= 4; i++) {
+      const o = t + i;
+      o >= 1 && o <= this.currentDoc.page_count && !this.cachedPageBlobs.has(o) && e.push(o);
+    }
+    e.length > 0 && this.renderWorker.postMessage({
+      type: "PREFETCH_PAGES",
+      docId: this.currentDoc.id,
+      pages: e,
+      dpi: 120
+    });
+  }
+  async loadFromUrl(t, e) {
+    await this.loadRemote(void 0, void 0, e, t);
+  }
+  async loadRemote(t, e, i, o) {
+    this.docTitleEl && (this.docTitleEl.textContent = "Connexion à la GED distante...");
+    try {
+      const a = new URLSearchParams();
+      o && a.set("url", o), t && a.set("connector", t), e && a.set("id", e), i && a.set("token", i);
+      const n = await fetch(`/api/connectors/open?${a.toString()}`);
+      if (n.ok) {
+        const s = await n.json();
+        this.displayDocument(s);
+        const c = t ? t.toUpperCase() : "URL";
+        this.docTitleEl && (this.docTitleEl.innerHTML = `<span style="background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 6px;">${this.escapeHtml(c)}</span> ${this.escapeHtml(s.filename)}`);
+      } else {
+        const s = await n.text();
+        this.docTitleEl && (this.docTitleEl.textContent = "Échec de chargement distant"), alert(`Échec de connexion à la GED distante : ${s || n.statusText}`);
+      }
+    } catch (a) {
+      console.error("Remote open error", a), this.docTitleEl && (this.docTitleEl.textContent = "Erreur réseau"), alert(`Erreur réseau lors de l'accès à la GED : ${(a == null ? void 0 : a.message) || a}`);
+    }
+  }
+  download() {
+    if (!this.currentDoc) return;
+    if (this.permissions.canDownload === !1 || this.permissions.readOnly && this.permissions.canDownload !== !0) {
+      alert("Téléchargement désactivé par la politique de sécurité (RBAC).");
+      return;
+    }
+    const t = this.watermarkText ? `?watermark=${encodeURIComponent(this.watermarkText)}` : "";
+    window.open(`/api/documents/${this.currentDoc.id}/download${t}`, "_blank");
+  }
+  print() {
+    if (this.currentDoc) {
+      if (this.permissions.canPrint === !1 || this.permissions.readOnly && this.permissions.canPrint !== !0) {
+        alert("Impression désactivée par la politique de sécurité (RBAC).");
+        return;
+      }
+      window.print();
+    }
+  }
+  setWatermark(t) {
+    this.watermarkText = t, this.updateAllWatermarks();
+  }
+  updateAllWatermarks() {
+    var e;
+    const t = (e = this.pagesContainer) == null ? void 0 : e.querySelectorAll(".page-container");
+    t == null || t.forEach((i) => {
+      this.attachWatermarkOverlay(i, this.watermarkText);
+    });
+  }
+  attachWatermarkOverlay(t, e) {
+    const i = t.querySelector(".page-content") || t;
+    let o = i.querySelector(".page-watermark-overlay");
+    if (!e || e.trim() === "") {
+      o && o.remove();
+      return;
+    }
+    o || (o = document.createElement("div"), o.className = "page-watermark-overlay", o.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center; z-index: 20; user-select: none; overflow: hidden;", i.appendChild(o));
+    const a = e.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    o.innerHTML = `
+      <div style="transform: rotate(-35deg); color: rgba(220, 38, 38, 0.18); font-size: clamp(20px, 3.8vw, 42px); font-weight: 800; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; letter-spacing: 2px; text-transform: uppercase; text-align: center; line-height: 1.4; max-width: 88%; word-break: break-word; border: 3px dashed rgba(220, 38, 38, 0.22); padding: 10px 20px; border-radius: 8px;">
+        ${a}
+      </div>
+    `;
+  }
+  setPermissions(t) {
+    this.permissions = { ...this.permissions, ...t }, this.applyPermissionsUI(), this.dispatchEvent("permissionschanged", { permissions: this.permissions });
+  }
+  applyPermissionsUI() {
+    const t = !!this.permissions.readOnly, e = !t && this.permissions.canDownload !== !1, i = !t && this.permissions.canPrint !== !1, o = !t && this.permissions.canRedact !== !1, a = !t && this.permissions.canAnnotate !== !1, n = !t && this.permissions.canSign !== !1, s = !t && this.permissions.canBuild !== !1, c = !t && this.permissions.canUpload !== !1, r = this.$("btnDownloadDoc");
+    r && (r.style.display = e ? "inline-flex" : "none");
+    const d = this.$("btnPrintDoc");
+    d && (d.style.display = i ? "inline-flex" : "none");
+    const l = this.$("btnUploadDoc");
+    l && (l.style.display = c ? "inline-flex" : "none");
+    const p = this.$("toolHighlight");
+    p && (p.style.display = a ? "inline-flex" : "none");
+    const m = this.$("toolNote");
+    m && (m.style.display = a ? "inline-flex" : "none");
+    const f = this.$("toolRedact");
+    f && (f.style.display = o ? "inline-flex" : "none");
+    const u = this.$("btnOpenBurnIn");
+    u && !o && (u.style.display = "none");
+    const b = this.$("btnOpenPiiScan");
+    b && (b.style.display = o ? "inline-flex" : "none");
+    const w = this.$("btnOpenSignModal");
+    w && (w.style.display = n ? "inline-flex" : "none");
+    const k = this.$("btnOpenBuilder");
+    k && (k.style.display = s ? "inline-flex" : "none");
+    const M = this.$("btnSaveForms");
+    M && t && (M.style.display = "none");
+    const D = this.permissions.canSearch !== !1, L = this.$("btnToggleSearch");
+    L && (L.style.display = D ? "inline-flex" : "none");
+    const E = this.permissions.canRotate !== !1, $ = this.$("rotateGroup");
+    $ && ($.style.display = E ? "flex" : "none");
+    const P = this.permissions.canChangeViewMode !== !1, T = this.$("btnLayoutSingle"), B = this.$("btnLayoutDouble"), R = this.$("btnLayoutGrid");
+    T && (T.style.display = P ? "inline-flex" : "none"), B && (B.style.display = P ? "inline-flex" : "none"), R && (R.style.display = P ? "inline-flex" : "none");
+    const S = this.permissions.canChangeScrollMode !== !1, q = this.$("btnScrollContinuous"), O = this.$("btnScrollPage");
+    q && (q.style.display = S ? "inline-flex" : "none"), O && (O.style.display = S ? "inline-flex" : "none");
+    const x = this.permissions.canZenMode !== !1, F = this.$("btnToggleZenMode");
+    F && (F.style.display = x ? "inline-flex" : "none"), !x && this.zenMode && this.setZenMode(!1), (!a && (this.currentTool === "highlight" || this.currentTool === "note") || !o && this.currentTool === "redact") && this.setTool("select");
+  }
+  async checkUrlParams() {
+    const t = new URLSearchParams(window.location.search), e = t.get("url"), i = t.get("connector"), o = t.get("id") || t.get("docId"), a = t.get("token") || t.get("alf_ticket");
+    e ? this.loadFromUrl(e, a || void 0) : i && o ? this.loadRemote(i, o, a || void 0) : o && this.loadDocumentById(o);
+  }
+  setupListeners() {
+    var F, N, W, V, j, U, Z, G, Y, X, J, K, Q, ee, te, ie, oe, ne, ae, se, re, le, ce, de, pe, he, ue, ge, me, fe, be, ve, xe, ye, we, Ce, ke, $e, Pe, Se, Me, De, Le, Ee, Te, Re, Be, Ae, ze, Ie, Oe, qe, _e;
+    const t = this.$("fileUploadInput");
+    (F = this.$("btnUploadDoc")) == null || F.addEventListener("click", () => t.click()), t.addEventListener("change", (h) => {
+      var y;
+      const v = (y = h.target.files) == null ? void 0 : y[0];
+      v && this.uploadDocument(v);
+    });
+    const e = this.root && this.root !== document && "querySelector" in this.root ? this.root : document.body, i = this.$("dragDropOverlay");
+    let o = 0;
+    const a = () => {
+      i && (i.style.display = "flex");
+    }, n = () => {
+      o = 0, i && (i.style.display = "none");
+    }, s = (h) => {
+      h.preventDefault(), o++, a();
+    }, c = (h) => {
+      h.preventDefault(), h.dataTransfer && (h.dataTransfer.dropEffect = "copy"), a();
+    }, r = (h) => {
+      h.preventDefault(), o = Math.max(0, o - 1), o === 0 && i && (i.style.display = "none");
+    }, d = (h) => {
+      var y, C, I, _, z, H;
+      h.preventDefault(), h.stopPropagation(), n();
+      const v = ((C = (y = h.dataTransfer) == null ? void 0 : y.files) == null ? void 0 : C[0]) || ((H = (z = (_ = (I = h.dataTransfer) == null ? void 0 : I.items) == null ? void 0 : _[0]) == null ? void 0 : z.getAsFile) == null ? void 0 : H.call(z));
+      v && (this.dispatchEvent("filedropped", { name: v.name, size: v.size, type: v.type }), this.uploadDocument(v));
+    };
+    e.addEventListener("dragenter", s), e.addEventListener("dragover", c), e.addEventListener("dragleave", r), e.addEventListener("drop", d), e === document.body || !this.root || this.root === document ? (window.addEventListener("dragenter", s), window.addEventListener("dragover", c), window.addEventListener("dragleave", r), window.addEventListener("drop", d)) : (window.addEventListener("dragover", (h) => {
+      h.preventDefault(), h.dataTransfer && (h.dataTransfer.dropEffect = "copy");
+    }), window.addEventListener("drop", (h) => {
+      h.preventDefault();
+    })), (N = this.$("btnPrevPage")) == null || N.addEventListener("click", () => this.goToPage(this.activePage - 1)), (W = this.$("btnNextPage")) == null || W.addEventListener("click", () => this.goToPage(this.activePage + 1)), (V = this.pageNumberInput) == null || V.addEventListener("change", () => {
+      const h = parseInt(this.pageNumberInput.value, 10);
+      isNaN(h) || this.goToPage(h);
+    });
+    const l = this.$("documentViewport");
+    if (l) {
+      let h = null;
+      l.addEventListener("scroll", () => {
+        this.viewMode === "grid" || this.scrollMode === "page" || h || (h = setTimeout(() => {
+          var _;
+          if (h = null, !this.currentDoc) return;
+          const v = l.getBoundingClientRect(), y = v.top + v.height / 2;
+          let C = this.activePage, I = 1 / 0;
+          for (const z of this.currentDoc.pages) {
+            const H = this.$(`page-${z.page_number}`);
+            if (H) {
+              const He = H.getBoundingClientRect(), je = He.top + He.height / 2, Fe = Math.abs(je - y);
+              Fe < I && (I = Fe, C = z.page_number);
+            }
+          }
+          C !== this.activePage && (this.activePage = C, this.pageNumberInput && (this.pageNumberInput.value = C.toString()), this.updateRotateMenuLabels(), this.updateRotateTooltips(), this.$$(".thumb-item").forEach((z) => z.classList.remove("active")), (_ = this.$(`.thumb-item[data-page="${C}"]`)) == null || _.classList.add("active"), this.dispatchEvent("pagechanged", { page: C, total: this.currentDoc.page_count }));
+        }, 120));
+      }, { passive: !0 });
+    }
+    (j = this.$("btnZoomIn")) == null || j.addEventListener("click", () => this.setZoom(this.currentZoom + 0.15)), (U = this.$("btnZoomOut")) == null || U.addEventListener("click", () => this.setZoom(this.currentZoom - 0.15)), (Z = this.$("btnFitWidth")) == null || Z.addEventListener("click", () => this.fitWidth()), (G = this.$("btnFitPage")) == null || G.addEventListener("click", () => this.fitPage()), (Y = this.$("btnRotateCw")) == null || Y.addEventListener("click", () => this.rotate(90)), (X = this.$("btnRotateCcw")) == null || X.addEventListener("click", () => this.rotate(-90));
+    const p = this.$("rotateMenu"), m = this.$("btnRotateMenu");
+    m == null || m.addEventListener("click", (h) => {
+      if (h.stopPropagation(), h.preventDefault(), p) {
+        const v = p.style.display === "none" || getComputedStyle(p).display === "none";
+        p.style.display = v ? "block" : "none", v && this.updateRotateMenuLabels();
+      }
+    });
+    const f = this.$("menuDicomPresets"), u = this.$("btnDicomPresets");
+    u == null || u.addEventListener("click", (h) => {
+      if (h.stopPropagation(), h.preventDefault(), f) {
+        const v = f.style.display === "none" || getComputedStyle(f).display === "none";
+        f.style.display = v ? "block" : "none";
+      }
+    }), this.$$("[data-preset]").forEach((h) => {
+      h.addEventListener("click", (v) => {
+        v.stopPropagation(), v.preventDefault();
+        const y = h.getAttribute("data-preset");
+        y && (this.applyDicomPreset(y), f && (f.style.display = "none"));
+      });
+    });
+    const b = this.$("btnDicomCinePlay");
+    b == null || b.addEventListener("click", (h) => {
+      h.stopPropagation(), h.preventDefault(), this.toggleDicomCine();
+    });
+    const w = (h) => {
+      if (p && p.style.display !== "none") {
+        const v = h.target, y = m && (m === v || m.contains(v)), C = p.contains(v);
+        !y && !C && (p.style.display = "none");
+      }
+      if (f && f.style.display !== "none") {
+        const v = h.target, y = u && (u === v || u.contains(v)), C = f.contains(v);
+        !y && !C && (f.style.display = "none");
+      }
+    };
+    window.addEventListener("click", w), this.root && "addEventListener" in this.root && this.root !== document && this.root.addEventListener("click", w), (J = this.$("menuOptRotateAll")) == null || J.addEventListener("click", () => {
+      this.setRotateScope("all"), p && (p.style.display = "none");
+    }), (K = this.$("menuOptRotateCurrent")) == null || K.addEventListener("click", () => {
+      this.setRotateScope("current"), p && (p.style.display = "none");
+    }), (Q = this.$("menuActionRotatePageCw")) == null || Q.addEventListener("click", () => {
+      this.rotate(90, "current"), p && (p.style.display = "none");
+    }), (ee = this.$("menuActionRotatePageCcw")) == null || ee.addEventListener("click", () => {
+      this.rotate(-90, "current"), p && (p.style.display = "none");
+    }), (te = this.$("btnLayoutSingle")) == null || te.addEventListener("click", () => this.setViewMode("single")), (ie = this.$("btnLayoutDouble")) == null || ie.addEventListener("click", () => this.setViewMode("double")), (oe = this.$("btnLayoutGrid")) == null || oe.addEventListener("click", () => this.setViewMode("grid")), (ne = this.$("btnToggleFullscreen")) == null || ne.addEventListener("click", () => this.toggleFullscreen()), (ae = this.$("btnToggleZenMode")) == null || ae.addEventListener("click", () => this.toggleZenMode()), (se = this.$("btnScrollContinuous")) == null || se.addEventListener("click", () => this.setScrollMode("continuous")), (re = this.$("btnScrollPage")) == null || re.addEventListener("click", () => this.setScrollMode("page")), (le = this.$("btnBookPrevSpread")) == null || le.addEventListener("click", () => {
+      this.viewMode === "double" ? this.prevSpread() : this.goToPage(this.activePage - 1);
+    }), (ce = this.$("btnBookNextSpread")) == null || ce.addEventListener("click", () => {
+      this.viewMode === "double" ? this.nextSpread() : this.goToPage(this.activePage + 1);
+    }), window.addEventListener("keydown", (h) => {
+      var C, I;
+      const v = document.activeElement;
+      v && (v.tagName === "INPUT" || v.tagName === "TEXTAREA" || v.getAttribute("contenteditable") === "true") || ((h.ctrlKey || h.metaKey) && (h.key === "b" || h.key === "B") ? (h.preventDefault(), this.toggleSidebar()) : h.key === "f" || h.key === "F" ? (h.preventDefault(), this.toggleFullscreen()) : h.key === "z" || h.key === "Z" ? (h.preventDefault(), this.toggleZenMode()) : h.key === "Home" ? (h.preventDefault(), this.goToPage(1)) : h.key === "End" ? (h.preventDefault(), this.currentDoc && this.goToPage(this.currentDoc.page_count)) : h.key === "ArrowRight" || h.key === "ArrowDown" || h.key === "PageDown" ? (h.preventDefault(), this.viewMode === "double" ? this.nextSpread() : this.goToPage(this.activePage + 1)) : h.key === "ArrowLeft" || h.key === "ArrowUp" || h.key === "PageUp" ? (h.preventDefault(), this.viewMode === "double" ? this.prevSpread() : this.goToPage(this.activePage - 1)) : h.code === "Space" && ((C = this.currentDoc) != null && C.filename.toLowerCase().endsWith(".dcm") || (I = this.currentDoc) != null && I.filename.toLowerCase().endsWith(".dicom")) && (h.preventDefault(), this.toggleDicomCine()));
+    }), document.addEventListener("fullscreenchange", () => {
+      setTimeout(() => {
+        this.viewMode === "double" ? this.fitPage() : this.viewMode === "single" && this.fitWidth();
+      }, 150);
+    });
+    const k = this.$$(".sidebar-tab");
+    k.forEach((h) => {
+      h.addEventListener("click", () => {
+        const v = h.getAttribute("data-tab") || "thumbnails", y = this.$("appSidebar"), C = !y || y.classList.contains("collapsed");
+        if (!C && this.activeSidebarTab === v) {
+          y == null || y.classList.add("collapsed"), h.classList.remove("active");
+          return;
+        }
+        y && C && y.classList.remove("collapsed"), k.forEach((I) => I.classList.remove("active")), h.classList.add("active"), this.activeSidebarTab = v, this.renderSidebarContent(v);
+      });
+    }), (de = this.$("btnToggleSidebar")) == null || de.addEventListener("click", () => {
+      this.toggleSidebar();
+    }), (pe = this.$("btnCloseSidebar")) == null || pe.addEventListener("click", () => {
+      const h = this.$("appSidebar");
+      h && (h.classList.add("collapsed"), this.$$(".sidebar-tab").forEach((v) => v.classList.remove("active")));
+    });
+    const M = ["toolSelect", "toolHighlight", "toolNote", "toolRedact"];
+    M.forEach((h) => {
+      const v = this.$(h);
+      v == null || v.addEventListener("click", () => {
+        M.forEach((y) => {
+          var C;
+          return (C = this.$(y)) == null ? void 0 : C.classList.remove("active");
+        }), v.classList.add("active"), this.setTool(h.replace("tool", "").toLowerCase());
+      });
+    });
+    const D = this.$("searchOverlay");
+    (he = this.$("btnToggleSearch")) == null || he.addEventListener("click", () => {
+      var h;
+      D && (D.style.display = D.style.display === "none" ? "flex" : "none", D.style.display === "flex" && ((h = this.$("searchInput")) == null || h.focus()));
+    }), (ue = this.$("btnCloseSearch")) == null || ue.addEventListener("click", () => {
+      D && (D.style.display = "none", this.clearSearch());
+    }), (ge = this.$("searchInput")) == null || ge.addEventListener("input", (h) => {
+      const v = h.target.value;
+      this.searchInDocument(v);
+    }), (me = this.$("btnSearchNext")) == null || me.addEventListener("click", () => {
+      this.navigateSearch(1);
+    }), (fe = this.$("btnSearchPrev")) == null || fe.addEventListener("click", () => {
+      this.navigateSearch(-1);
+    });
+    const L = this.$("piiModal");
+    (be = this.$("btnOpenPiiScan")) == null || be.addEventListener("click", () => {
+      if (!this.currentDoc) {
+        alert("Veuillez ouvrir un document avant de lancer le scan RGPD.");
+        return;
+      }
+      L && (L.style.display = "flex", this.runPiiScan());
+    }), (ve = this.$("btnClosePiiModal")) == null || ve.addEventListener("click", () => {
+      L && (L.style.display = "none");
+    }), (xe = this.$("btnCancelPiiModal")) == null || xe.addEventListener("click", () => {
+      L && (L.style.display = "none");
+    }), (ye = this.$("btnApplyPiiRedactions")) == null || ye.addEventListener("click", () => {
+      this.applySelectedPiiRedactions();
+    });
+    const E = this.$("signatureModal");
+    (we = this.$("btnOpenSignModal")) == null || we.addEventListener("click", () => {
+      this.openSignatureDialog();
+    }), (Ce = this.$("btnCloseSignModal")) == null || Ce.addEventListener("click", () => {
+      E && (E.style.display = "none");
+    }), (ke = this.$("btnCancelSignModal")) == null || ke.addEventListener("click", () => {
+      E && (E.style.display = "none");
+    }), ($e = this.$("btnApplySignature")) == null || $e.addEventListener("click", () => {
+      this.applySignature();
+    });
+    const $ = this.$("tabSigStamp"), P = this.$("tabSigHandwritten"), T = this.$("sigStampContent"), B = this.$("sigHandwrittenContent");
+    $ == null || $.addEventListener("click", () => {
+      $.classList.add("active"), P == null || P.classList.remove("active"), T && (T.style.display = "block"), B && (B.style.display = "none");
+    }), P == null || P.addEventListener("click", () => {
+      P.classList.add("active"), $ == null || $.classList.remove("active"), T && (T.style.display = "none"), B && (B.style.display = "block"), this.initSignatureCanvas();
+    }), (Pe = this.$("btnClearCanvas")) == null || Pe.addEventListener("click", () => {
+      this.clearSignatureCanvas();
+    }), (Se = this.$("btnDownloadDoc")) == null || Se.addEventListener("click", () => {
+      this.download();
+    }), (Me = this.$("btnPrintDoc")) == null || Me.addEventListener("click", () => {
+      this.print();
+    }), window.addEventListener("keydown", (h) => {
+      (h.ctrlKey || h.metaKey) && h.key.toLowerCase() === "p" && (this.permissions.canPrint === !1 || this.permissions.readOnly && this.permissions.canPrint !== !0) && (h.preventDefault(), h.stopPropagation(), alert("Impression désactivée par la politique de sécurité (RBAC)."));
+    }), (De = this.$("btnSaveForms")) == null || De.addEventListener("click", () => {
+      this.saveFormValues();
+    });
+    const R = this.$("builderModal");
+    (Le = this.$("btnOpenBuilder")) == null || Le.addEventListener("click", () => {
+      if (!this.currentDoc) {
+        alert("Veuillez ouvrir un document avant de lancer le Builder.");
+        return;
+      }
+      if (R) {
+        R.style.display = "flex";
+        const h = this.$("builderGrid"), v = new Ne(this.currentDoc.id, this.currentDoc.pages, (y) => {
+          R.style.display = "none", this.loadDocumentById(y);
+        });
+        v.render(h), this.$("btnApplyBuilder").onclick = () => {
+          const y = this.$("builderWatermarkText").value;
+          v.applyBuild(y);
+        };
+      }
+    }), (Ee = this.$("btnCloseBuilder")) == null || Ee.addEventListener("click", () => {
+      R && (R.style.display = "none");
+    }), (Te = this.$("btnCancelBuilder")) == null || Te.addEventListener("click", () => {
+      R && (R.style.display = "none");
+    });
+    const S = this.$("compareModal");
+    (Re = this.$("btnOpenCompare")) == null || Re.addEventListener("click", () => {
+      if (!this.currentDoc) {
+        alert("Veuillez ouvrir un document actif avant de comparer.");
+        return;
+      }
+      S && (S.style.display = "flex");
+    }), (Be = this.$("btnCloseCompare")) == null || Be.addEventListener("click", () => {
+      S && (S.style.display = "none");
+    }), (Ae = this.$("btnCancelCompare")) == null || Ae.addEventListener("click", () => {
+      S && (S.style.display = "none");
+    });
+    const q = (h) => {
+      if (!this.currentDoc || !S) return;
+      const v = this.$("compareResultContainer"), y = this.$("compareStats");
+      new Ye(this.currentDoc, S, v, y).runComparison(h);
+    };
+    (ze = this.$("btnRunCompare")) == null || ze.addEventListener("click", () => {
+      var y;
+      if (!this.currentDoc) return;
+      const v = (y = this.$("compareFileInput").files) == null ? void 0 : y[0];
+      if (!v) {
+        alert("Veuillez sélectionner un second fichier à comparer.");
+        return;
+      }
+      q(v);
+    });
+    const O = this.$("compareResultContainer");
+    O && S && (O.addEventListener("dragover", (h) => {
+      h.preventDefault(), h.stopPropagation(), h.dataTransfer && (h.dataTransfer.dropEffect = "copy"), O.style.border = "2px dashed var(--accent)";
+    }), O.addEventListener("dragleave", (h) => {
+      h.preventDefault(), O.style.border = "";
+    }), O.addEventListener("drop", (h) => {
+      var y, C, I, _, z, H;
+      h.preventDefault(), h.stopPropagation(), O.style.border = "";
+      const v = ((C = (y = h.dataTransfer) == null ? void 0 : y.files) == null ? void 0 : C[0]) || ((H = (z = (_ = (I = h.dataTransfer) == null ? void 0 : I.items) == null ? void 0 : _[0]) == null ? void 0 : z.getAsFile) == null ? void 0 : H.call(z));
+      v && q(v);
+    }));
+    const x = this.$("redactModal");
+    (Ie = this.$("btnConfirmRedact")) == null || Ie.addEventListener("click", async () => {
+      if (!this.currentDoc) return;
+      const h = this.$("redactReasonSelect").value, v = [];
+      for (const y of this.allAnnotations)
+        y.annotation_type === "redact" && v.push({
+          page_number: y.page_number,
+          x: y.x,
+          y: y.y,
+          width: y.width,
+          height: y.height,
+          reason: h,
+          overlay_text: h
+        });
+      if (v.length === 0) {
+        alert("Aucune zone de biffure sélectionnée sur le document."), x && (x.style.display = "none");
+        return;
+      }
+      try {
+        const y = await fetch(`/api/documents/${this.currentDoc.id}/redact`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_id: this.currentDoc.id,
+            items: v
+          })
+        });
+        if (!y.ok) {
+          alert("Erreur lors de la biffure");
+          return;
+        }
+        const C = await y.json();
+        alert("Biffure permanente appliquée avec succès ! Chargement du document sécurisé..."), x && (x.style.display = "none"), this.dispatchEvent("burninapplied", { documentId: C.id, redactionsCount: v.length }), this.loadDocumentById(C.id);
+      } catch (y) {
+        alert(`Erreur: ${y}`);
+      }
+    }), (Oe = this.$("btnCloseRedact")) == null || Oe.addEventListener("click", () => {
+      x && (x.style.display = "none");
+    }), (qe = this.$("btnCancelRedact")) == null || qe.addEventListener("click", () => {
+      x && (x.style.display = "none");
+    }), (_e = this.$("btnOpenBurnIn")) == null || _e.addEventListener("click", () => {
+      x && (x.style.display = "flex");
+    }), this.setupSelectionToolbar();
+  }
+  async uploadDocument(t) {
+    if (this.isUploading) {
+      console.warn("Upload already in progress, skipping duplicate");
+      return;
+    }
+    if (this.isUploading = !0, this.loadingOverlay && (this.loadingOverlay.style.display = "flex", this.loadingOverlayTitle && (this.loadingOverlayTitle.textContent = `Téléversement : ${t.name}`), this.loadingOverlaySub)) {
+      const i = (t.size / 1048576).toFixed(1);
+      this.loadingOverlaySub.textContent = `Taille : ${i} Mo • Traitement et conversion haute fidélité...`;
+    }
+    this.docTitleEl.textContent = `Chargement de ${t.name}...`, this.dispatchEvent("uploadstart", { filename: t.name, size: t.size, type: t.type });
+    const e = new FormData();
+    e.append("file", t);
+    try {
+      const i = await fetch("/api/documents", {
+        method: "POST",
+        body: e
+      });
+      if (!i.ok) {
+        const a = await i.text().catch(() => "Erreur inconnue");
+        throw new Error(a || "Erreur lors du chargement du document");
+      }
+      const o = await i.json();
+      this.displayDocument(o);
+    } catch (i) {
+      this.dispatchEvent("uploaderror", { error: i.message || String(i) }), alert(`Erreur de chargement: ${i.message || i}`);
+    } finally {
+      this.loadingOverlay && (this.loadingOverlay.style.display = "none"), this.isUploading = !1;
+    }
+  }
+  async loadDocumentById(t) {
+    this.loadingOverlay && (this.loadingOverlay.style.display = "flex", this.loadingOverlayTitle && (this.loadingOverlayTitle.textContent = "Chargement du document..."), this.loadingOverlaySub && (this.loadingOverlaySub.textContent = "Récupération des métadonnées et pages..."));
+    try {
+      const e = await fetch(`/api/documents/${t}`);
+      if (!e.ok) return;
+      const i = await e.json();
+      this.displayDocument(i);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.loadingOverlay && (this.loadingOverlay.style.display = "none");
+    }
+  }
+  displayDocument(t) {
+    var k, M, D, L, E;
+    this.currentDoc = t;
+    const e = ((k = t.filename.split(".").pop()) == null ? void 0 : k.toLowerCase()) || "pdf";
+    let i = "#ef4444", o = "PDF";
+    e === "docx" || e === "doc" ? (i = "#2563eb", o = "WORD") : e === "xlsx" || e === "xls" ? (i = "#16a34a", o = "EXCEL") : e === "eml" || e === "msg" ? (i = "#9333ea", o = "EMAIL") : e === "txt" || e === "csv" || e === "log" ? (i = "#d97706", o = "TEXTE") : e === "dxf" || e === "dwg" ? (i = "#0284c7", o = "CAO / DAO") : e === "dcm" || e === "dicom" ? (i = "#10b981", o = "DICOM") : (M = t.mime_type) != null && M.startsWith("video/") || ["mp4", "webm", "ogv", "mov", "mkv", "avi", "m4v", "3gp"].includes(e) ? (i = "#ef4444", o = "VIDÉO") : ((D = t.mime_type) != null && D.startsWith("audio/") || ["mp3", "wav", "flac", "aac", "m4a"].includes(e)) && (i = "#8b5cf6", o = "AUDIO"), this.docTitleEl.innerHTML = `<span style="background: ${i}; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; margin-right: 8px; font-weight: bold;">${this.escapeHtml(o)}</span> ${this.escapeHtml(t.filename)}`, this.pageCountLabel.textContent = t.page_count.toString(), this.pageNumberInput.value = "1", this.pageNumberInput.max = t.page_count.toString(), this.activePage = 1;
+    const a = this.$("attachmentsTab"), n = this.$("attachmentsBadge");
+    a && (t.attachments && t.attachments.length > 0 ? (a.style.display = "flex", n && (n.style.display = "flex", n.textContent = t.attachments.length.toString())) : (a.style.display = "none", n && (n.style.display = "none")));
+    const s = this.$("cadLayersTab"), c = this.$("cadLayersBadge");
+    e === "dxf" || e === "dwg" ? this.loadCadLayers() : (s && (s.style.display = "none"), c && (c.style.display = "none"), this.cadMetadata = null, this.activeCadLayers.clear());
+    const r = this.$("dicomTab"), d = this.$("dicomBadge"), l = this.$("dicomControlsGroup"), p = this.$("dicomCineGroup"), m = e === "dcm" || e === "dicom";
+    this.stopDicomCine(), this.dicomCustomWindow = !1;
+    const f = this.root && "querySelector" in this.root && this.root.classList.contains("oxid-viewer-root") ? this.root : this.$(".oxid-viewer-root") || document.querySelector(".oxid-viewer-root");
+    f == null || f.classList.toggle("dicom-mode", m);
+    const u = this.$("documentViewport");
+    u == null || u.classList.toggle("dicom-mode", m), p && (p.style.display = m && t.page_count > 1 ? "flex" : "none"), m ? this.loadDicomData() : (r && (r.style.display = "none"), d && (d.style.display = "none"), l && (l.style.display = "none"), this.dicomMetadata = null), this.emptyState.style.display = "none", u && (u.className.includes("layout-") || u.classList.add("layout-single"), u.classList.toggle("scroll-continuous", this.scrollMode === "continuous"), u.classList.toggle("scroll-page", this.scrollMode === "page")), this.pagesContainer.style.display = "flex", this.pagesContainer.innerHTML = "", this.textRenderers.clear(), this.annotationManagers.clear(), this.pageRotations.clear(), this.defaultRotation = 0, this.rotateScope = "all", this.updateRotateMenuLabels(), this.updateRotateTooltips();
+    for (const $ of this.cachedPageBlobs.values())
+      URL.revokeObjectURL($);
+    for (const $ of this.cachedThumbBlobs.values())
+      URL.revokeObjectURL($);
+    if (this.cachedPageBlobs.clear(), this.cachedThumbBlobs.clear(), (L = this.renderWorker) == null || L.postMessage({ type: "CLEAR_CACHE" }), this.intersectionObserver && this.intersectionObserver.disconnect(), this.thumbIntersectionObserver && this.thumbIntersectionObserver.disconnect(), this.intersectionObserver = new IntersectionObserver(($) => {
+      $.forEach((P) => {
+        const T = P.target, B = parseInt(T.dataset.pageNumber || "1", 10);
+        P.isIntersecting ? this.renderPageContent(T, B) : t.pages.length > 20 && this.unrenderPageContent(T, B);
+      });
+    }, {
+      root: this.$("documentViewport"),
+      rootMargin: "100% 0px"
+    }), this.thumbIntersectionObserver = new IntersectionObserver(($) => {
+      $.forEach((P) => {
+        var T;
+        if (P.isIntersecting) {
+          const B = P.target, R = B.querySelector("img"), S = parseInt(B.getAttribute("data-page") || "0", 10);
+          if (R && S > 0 && !R.src) {
+            const q = this.cachedThumbBlobs.get(S);
+            R.src = q || `/api/documents/${t.id}/pages/${S}/thumbnail`;
+          }
+          (T = this.thumbIntersectionObserver) == null || T.unobserve(B);
+        }
+      });
+    }, {
+      root: this.sidebarContent,
+      rootMargin: "150px 0px"
+    }), ((E = t.mime_type) == null ? void 0 : E.startsWith("video/")) || ["mp4", "webm", "ogv", "mov", "mkv", "avi", "m4v", "3gp"].includes(e)) {
+      this.renderVideoPlayer(t), this.renderSidebarContent("thumbnails"), this.dispatchEvent("documentloaded", t);
+      return;
+    }
+    for (const $ of t.pages)
+      this.createPageElement($);
+    const w = this.$("page-1");
+    w && this.renderPageContent(w, 1), this.renderSidebarContent("thumbnails"), this.loadAnnotations(), this.loadFormFields(), this.prefetchNearbyPages(1), this.updateVisiblePages(), this.dispatchEvent("documentloaded", t);
+  }
+  createPageElement(t) {
+    var c, r, d, l;
+    const e = t.page_number, i = ((r = (c = this.currentDoc) == null ? void 0 : c.filename.split(".").pop()) == null ? void 0 : r.toLowerCase()) || "", o = i === "dcm" || i === "dicom", a = document.createElement("div");
+    a.className = "page-container", o && (a.style.backgroundColor = "#000000"), a.id = `page-${e}`, a.dataset.pageNumber = e.toString(), a.dataset.rendered = "false";
+    const n = document.createElement("div");
+    n.className = "page-content", o && (n.style.backgroundColor = "#000000"), a.appendChild(n);
+    const s = document.createElement("div");
+    s.className = "page-placeholder", s.style.cssText = "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted); font-size: 13px; pointer-events: none;", s.textContent = `Page ${e} / ${((d = this.currentDoc) == null ? void 0 : d.page_count) || ""}`, n.appendChild(s), this.watermarkText && this.attachWatermarkOverlay(a, this.watermarkText), this.pagesContainer.appendChild(a), this.updatePageLayoutDimensions(e), (l = this.intersectionObserver) == null || l.observe(a);
+  }
+  renderPageContent(t, e) {
+    if (t.dataset.rendered === "true" || !this.currentDoc) return;
+    t.dataset.rendered = "true";
+    const i = this.currentDoc.pages.find((u) => u.page_number === e);
+    if (!i) return;
+    const o = i.width, a = i.height, n = o * this.currentZoom, s = t.querySelector(".page-content") || t, c = s.querySelector(".page-placeholder");
+    c && c.remove();
+    let r = s.querySelector(".page-image"), d = `/api/documents/${this.currentDoc.id}/pages/${e}/render?dpi=120`;
+    this.activeCadLayers.size > 0 && (d += `&layers=${encodeURIComponent(Array.from(this.activeCadLayers).join(","))}`), this.dicomCustomWindow && this.dicomMetadata && typeof this.dicomWc == "number" && !isNaN(this.dicomWc) && typeof this.dicomWw == "number" && !isNaN(this.dicomWw) && (d += `&wc=${this.dicomWc}&ww=${this.dicomWw}`);
+    const l = this.activeCadLayers.size > 0 || this.dicomCustomWindow;
+    if (r) {
+      const u = l ? null : this.cachedPageBlobs.get(e);
+      u && !r.src.startsWith("blob:") && (r.src = u);
+    } else {
+      r = document.createElement("img"), r.className = "page-image", r.loading = "eager", r.decoding = "async";
+      const u = l ? null : this.cachedPageBlobs.get(e);
+      r.src = u || d, s.appendChild(r);
+    }
+    this.dicomMetadata && this.attachPacsOverlay(s, e), setTimeout(() => this.prefetchNearbyPages(e), 100);
+    const p = () => {
+      let u = s.querySelector(".text-layer");
+      u || (u = document.createElement("div"), u.className = "text-layer", s.appendChild(u));
+      let b = this.textRenderers.get(e);
+      b || (b = new Xe(u), this.textRenderers.set(e, b)), b.loadText(this.currentDoc.id, e, o, a, n);
+    };
+    "requestIdleCallback" in window ? window.requestIdleCallback(p, { timeout: 300 }) : setTimeout(p, 50);
+    let m = s.querySelector(".annotation-layer");
+    m || (m = document.createElement("div"), m.className = "annotation-layer", s.appendChild(m));
+    let f = this.annotationManagers.get(e);
+    f || (f = new Ge(
+      m,
+      e,
+      (u) => {
+        this.allAnnotations.push(u), this.saveAnnotations(), this.updateBurnInButton();
+      },
+      (u) => {
+        this.allAnnotations = this.allAnnotations.filter((b) => b.id !== u), this.saveAnnotations(), this.updateBurnInButton();
+      },
+      (u) => {
+        const b = this.allAnnotations.findIndex((w) => w.id === u.id);
+        b !== -1 && (this.allAnnotations[b] = u, this.saveAnnotations());
+      }
+    ), f.setScale(this.currentZoom), f.setTool(this.currentTool), f.setAnnotations(this.allAnnotations), this.annotationManagers.set(e, f)), this.formRenderer.render(s, e, this.currentZoom);
+  }
+  unrenderPageContent(t, e) {
+    var a;
+    if (t.dataset.rendered !== "true") return;
+    t.dataset.rendered = "false";
+    const i = t.querySelector(".page-content") || t, o = i.querySelector(".page-image");
+    if (o && o.remove(), !i.querySelector(".page-placeholder")) {
+      const n = document.createElement("div");
+      n.className = "page-placeholder", n.style.cssText = "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted); font-size: 13px; pointer-events: none;", n.textContent = `Page ${e} / ${((a = this.currentDoc) == null ? void 0 : a.page_count) || ""}`, i.appendChild(n);
+    }
+  }
+  initSignatureCanvas() {
+    if (this.sigCanvas = this.$("signatureCanvas"), !!this.sigCanvas && (this.sigCtx = this.sigCanvas.getContext("2d"), !!this.sigCtx && !this.sigCanvas.dataset.initialized)) {
+      this.sigCanvas.dataset.initialized = "true", this.sigCtx.strokeStyle = "#0f172a", this.sigCtx.lineWidth = 2.5, this.sigCtx.lineCap = "round", this.sigCtx.lineJoin = "round";
+      const t = (a) => {
+        const n = this.sigCanvas.getBoundingClientRect();
+        return {
+          x: (a.clientX - n.left) * (this.sigCanvas.width / n.width),
+          y: (a.clientY - n.top) * (this.sigCanvas.height / n.height)
+        };
+      }, e = (a) => {
+        var n, s;
+        this.isDrawing = !0, this.hasDrawnSignature = !0, (n = this.sigCtx) == null || n.beginPath(), (s = this.sigCtx) == null || s.moveTo(a.x, a.y);
+      }, i = (a) => {
+        var n, s;
+        this.isDrawing && ((n = this.sigCtx) == null || n.lineTo(a.x, a.y), (s = this.sigCtx) == null || s.stroke());
+      }, o = () => {
+        this.isDrawing = !1;
+      };
+      this.sigCanvas.addEventListener("mousedown", (a) => e(t(a))), this.sigCanvas.addEventListener("mousemove", (a) => i(t(a))), window.addEventListener("mouseup", o), this.sigCanvas.addEventListener("touchstart", (a) => {
+        a.preventDefault(), a.touches.length > 0 && e(t(a.touches[0]));
+      }, { passive: !1 }), this.sigCanvas.addEventListener("touchmove", (a) => {
+        a.preventDefault(), a.touches.length > 0 && i(t(a.touches[0]));
+      }, { passive: !1 }), window.addEventListener("touchend", o);
+    }
+  }
+  clearSignatureCanvas() {
+    this.sigCanvas && this.sigCtx && (this.sigCtx.clearRect(0, 0, this.sigCanvas.width, this.sigCanvas.height), this.hasDrawnSignature = !1);
+  }
+  openSignatureDialog() {
+    if (!this.currentDoc) {
+      alert("Veuillez ouvrir un document avant de signer.");
+      return;
+    }
+    const t = this.$("signatureModal");
+    if (t) {
+      t.style.display = "flex";
+      const e = this.$("sigPageNumber");
+      e && (e.value = this.activePage.toString(), e.max = this.currentDoc.page_count.toString());
+    }
+  }
+  async applySignature() {
+    var w, k, M, D, L;
+    if (!this.currentDoc) return;
+    const t = this.$("signatureModal"), e = ((w = this.$("sigSignerName")) == null ? void 0 : w.value.trim()) || "Signataire", i = ((k = this.$("sigReason")) == null ? void 0 : k.value.trim()) || "Approbation légale", o = ((M = this.$("sigLocation")) == null ? void 0 : M.value.trim()) || "Paris, FR", a = parseInt(((D = this.$("sigPageNumber")) == null ? void 0 : D.value) || "1", 10), n = ((L = this.$("sigPositionPreset")) == null ? void 0 : L.value) || "bottom-right", s = this.currentDoc.pages.find((E) => E.page_number === a) || this.currentDoc.pages[0], c = s.width, r = s.height, d = 250, l = 75;
+    let p = c - d - 30, m = r - l - 30;
+    n === "bottom-left" ? (p = 30, m = r - l - 30) : n === "center" && (p = (c - d) / 2, m = (r - l) / 2);
+    let f;
+    const u = this.$("tabSigHandwritten");
+    u != null && u.classList.contains("active") && this.hasDrawnSignature && this.sigCanvas && (f = this.sigCanvas.toDataURL("image/png"));
+    const b = this.$("btnApplySignature");
+    b && (b.disabled = !0, b.textContent = "Signature cryptographique en cours...");
+    try {
+      const E = await fetch(`/api/documents/${this.currentDoc.id}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          page_number: a,
+          x: p,
+          y: m,
+          width: d,
+          height: l,
+          signer_name: e,
+          reason: i,
+          location: o,
+          handwritten_png_base64: f
+        })
+      });
+      if (E.ok) {
+        const $ = await E.json();
+        t && (t.style.display = "none"), await this.loadDocumentById($.signed_doc_id), setTimeout(() => this.goToPage(a), 200);
+      } else
+        alert("Échec de la signature du document.");
+    } catch (E) {
+      console.error("Signature error", E), alert("Erreur réseau lors de la signature.");
+    } finally {
+      b && (b.disabled = !1, b.textContent = "Certifier et Signer le document");
+    }
+  }
+  getEffectivePageDimensions(t) {
+    var a;
+    const e = ((a = this.currentDoc) == null ? void 0 : a.pages[t - 1]) || { width: 595, height: 842 }, i = this.getPageRotation(t), o = Math.abs(i % 180) === 90;
+    return {
+      width: o ? e.height : e.width,
+      height: o ? e.width : e.height
+    };
+  }
+  updatePageLayoutDimensions(t) {
+    if (!this.currentDoc) return;
+    const e = this.currentDoc.pages.find((k) => k.page_number === t);
+    if (!e) return;
+    const i = this.$(`page-${t}`);
+    if (!i) return;
+    const o = e.width, a = e.height, n = this.getPageRotation(t), s = Math.abs(n % 180) === 90, c = o * this.currentZoom, r = a * this.currentZoom, d = s ? r : c, l = s ? c : r, p = s ? a : o, m = s ? o : a;
+    i.style.width = `${d}px`, i.style.height = `${l}px`, i.style.aspectRatio = `${p} / ${m}`, i.style.setProperty("--page-aspect", `${p} / ${m}`), i.style.setProperty("--page-rot", `${n}deg`);
+    const f = 240;
+    let u = f, b = f;
+    p >= m ? (u = f, b = Math.max(60, Math.round(f * (m / p)))) : (b = f, u = Math.max(60, Math.round(f * (p / m)))), i.style.setProperty("--grid-w", `${u}px`), i.style.setProperty("--grid-h", `${b}px`), i.classList.toggle("rotated-sideways", s), i.style.transform = "";
+    const w = i.querySelector(".page-content");
+    w && (w.style.transform = `translate(-50%, -50%) rotate(${n}deg)`, this.viewMode !== "grid" ? (w.style.width = `${c}px`, w.style.height = `${r}px`) : (w.style.width = "", w.style.height = ""));
+  }
+  setZoom(t) {
+    if (this.currentDoc) {
+      this.currentZoom = Math.min(Math.max(t, 0.3), 3), this.zoomLevelLabel.textContent = `${Math.round(this.currentZoom * 100)}%`;
+      for (const e of this.currentDoc.pages) {
+        const i = this.$(`page-${e.page_number}`);
+        if (i) {
+          this.updatePageLayoutDimensions(e.page_number);
+          const o = this.textRenderers.get(e.page_number);
+          o == null || o.updateScale(this.currentZoom);
+          const a = this.annotationManagers.get(e.page_number);
+          if (a == null || a.setScale(this.currentZoom), i.dataset.rendered === "true") {
+            const n = i.querySelector(".page-content") || i;
+            this.formRenderer.render(n, e.page_number, this.currentZoom);
+          }
+        }
+      }
+    }
+  }
+  fitWidth() {
+    var e;
+    if (!this.currentDoc || this.currentDoc.pages.length === 0) return;
+    const t = ((e = this.$("documentViewport")) == null ? void 0 : e.clientWidth) || 800;
+    if (this.viewMode === "double") {
+      const i = this.activePage % 2 === 1 ? this.activePage : this.activePage - 1, o = this.getEffectivePageDimensions(i), n = i + 1 <= this.currentDoc.pages.length ? this.getEffectivePageDimensions(i + 1) : null, s = n ? o.width + n.width : o.width * 2, c = Math.max(0.2, (t - 60) / s);
+      this.setZoom(c);
+    } else {
+      const i = this.getEffectivePageDimensions(this.activePage), o = Math.max(0.2, (t - 60) / i.width);
+      this.setZoom(o);
+    }
+  }
+  fitPage() {
+    var i, o;
+    if (!this.currentDoc || this.currentDoc.pages.length === 0) return;
+    const t = ((i = this.$("documentViewport")) == null ? void 0 : i.clientHeight) || 700, e = ((o = this.$("documentViewport")) == null ? void 0 : o.clientWidth) || 800;
+    if (this.viewMode === "double") {
+      const a = this.activePage % 2 === 1 ? this.activePage : this.activePage - 1, n = this.getEffectivePageDimensions(a), c = a + 1 <= this.currentDoc.pages.length ? this.getEffectivePageDimensions(a + 1) : null, r = c ? n.width + c.width : n.width * 2, d = c ? Math.max(n.height, c.height) : n.height, l = (t - 60) / d, p = (e - 60) / r;
+      this.setZoom(Math.max(0.2, Math.min(l, p)));
+    } else {
+      const a = this.getEffectivePageDimensions(this.activePage), n = (t - 60) / a.height, s = (e - 60) / a.width;
+      this.setZoom(Math.max(0.2, Math.min(n, s)));
+    }
+  }
+  getPageRotation(t) {
+    return this.pageRotations.get(t) ?? this.defaultRotation;
+  }
+  applyPageRotation(t, e) {
+    this.updatePageLayoutDimensions(t), this.updateThumbnailRotation(t, e);
+  }
+  updateThumbnailRotation(t, e) {
+    const i = this.$(`thumb-${t}`);
+    if (!i) return;
+    const o = i.querySelector(".thumb-preview"), a = o == null ? void 0 : o.querySelector("img");
+    if (!o || !a) return;
+    const n = this.getPageThumbDimensions(t);
+    o.style.width = `${n.width}px`, o.style.height = `${n.height}px`;
+    const s = Math.abs(e % 180) === 90;
+    o.classList.toggle("rotated-sideways", s), o.style.setProperty("--thumb-rot", `${e}deg`), a.style.transform = `translate(-50%, -50%) rotate(${e}deg)`;
+  }
+  setRotateScope(t) {
+    this.rotateScope = t, this.updateRotateMenuLabels(), this.updateRotateTooltips();
+  }
+  getRotateScope() {
+    return this.rotateScope;
+  }
+  updateRotateMenuLabels() {
+    const t = this.$("rotateCurrentPageLabel");
+    t && (t.textContent = `Page active (P. ${this.activePage})`);
+    const e = this.$("actionRotateCwLabel");
+    e && (e.textContent = `Tourner page ${this.activePage} (90° droite)`);
+    const i = this.$("actionRotateCcwLabel");
+    i && (i.textContent = `Tourner page ${this.activePage} (90° gauche)`);
+    const o = this.$("menuOptRotateAll"), a = this.$("menuOptRotateCurrent"), n = this.$("checkRotateAll"), s = this.$("checkRotateCurrent");
+    this.rotateScope === "all" ? (o == null || o.classList.add("active"), a == null || a.classList.remove("active"), n && (n.innerHTML = "✓"), s && (s.innerHTML = "&nbsp;")) : (a == null || a.classList.add("active"), o == null || o.classList.remove("active"), s && (s.innerHTML = "✓"), n && (n.innerHTML = "&nbsp;"));
+  }
+  updateRotateTooltips() {
+    const t = this.$("btnRotateCw"), e = this.$("btnRotateCcw");
+    this.rotateScope === "all" ? (t && (t.title = "Rotation 90° droite (Tout le document)"), e && (e.title = "Rotation 90° gauche (Tout le document)")) : (t && (t.title = `Rotation 90° droite (Page ${this.activePage})`), e && (e.title = `Rotation 90° gauche (Page ${this.activePage})`));
+  }
+  rotate(t, e) {
+    if (!this.currentDoc) return;
+    const i = e !== void 0 ? e : this.rotateScope;
+    if (typeof i == "number") {
+      const o = i, n = ((this.getPageRotation(o) + t) % 360 + 360) % 360;
+      this.pageRotations.set(o, n), this.applyPageRotation(o, n);
+    } else if (i === "all") {
+      this.defaultRotation = ((this.defaultRotation + t) % 360 + 360) % 360;
+      for (const o of this.currentDoc.pages) {
+        const a = o.page_number, s = ((this.getPageRotation(a) + t) % 360 + 360) % 360;
+        this.pageRotations.set(a, s), this.applyPageRotation(a, s);
+      }
+    } else {
+      const o = this.activePage, n = ((this.getPageRotation(o) + t) % 360 + 360) % 360;
+      this.pageRotations.set(o, n), this.applyPageRotation(o, n);
+    }
+    this.viewMode === "double" && this.fitPage(), this.activeSidebarTab === "thumbnails" && this.renderSidebarContent("thumbnails"), this.dispatchEvent("pagerotated", {
+      scope: i,
+      degrees: t,
+      activePage: this.activePage,
+      rotations: Object.fromEntries(this.pageRotations.entries())
+    });
+  }
+  setTool(t) {
+    this.currentTool = t, this.annotationManagers.forEach((i) => i.setTool(t)), ["toolSelect", "toolHighlight", "toolNote", "toolRedact"].forEach((i) => {
+      const o = this.$(i);
+      o && (i.replace("tool", "").toLowerCase() === t.toLowerCase() ? o.classList.add("active") : o.classList.remove("active"));
+    }), this.dispatchEvent("toolchanged", { tool: t });
+  }
+  goToPage(t) {
+    var n;
+    if (!this.currentDoc || t < 1 || t > this.currentDoc.page_count) return;
+    if (this.activePage = t, this.pageNumberInput.value = t.toString(), this.updateRotateMenuLabels(), this.updateRotateTooltips(), this.updateVisiblePages(), this.scrollMode === "page") {
+      const s = this.$("documentViewport");
+      s && (s.scrollTop = 0, s.scrollLeft = 0);
+    } else {
+      const s = this.viewMode === "double" && t % 2 === 0 ? t - 1 : t, c = this.$(`page-${s}`) || this.$(`page-${t}`);
+      c == null || c.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    }
+    this.$$(".thumb-item").forEach((s) => {
+      s.classList.remove("active");
+    }), (n = this.$(`.thumb-item[data-page="${t}"]`)) == null || n.classList.add("active");
+    const e = this.$("btnBookPrevSpread"), i = this.$("btnBookNextSpread");
+    this.viewMode === "double" ? (e && (e.disabled = t <= 1), i && (i.disabled = t >= this.currentDoc.page_count - 1)) : (e && (e.disabled = t <= 1), i && (i.disabled = t >= this.currentDoc.page_count));
+    const o = this.$("btnPrevPage"), a = this.$("btnNextPage");
+    o && (o.disabled = t <= 1), a && (a.disabled = t >= this.currentDoc.page_count), this.dispatchEvent("pagechanged", { page: t, total: this.currentDoc.page_count });
+  }
+  setScrollMode(t) {
+    this.scrollMode = t;
+    const e = this.$("documentViewport");
+    if (!e) return;
+    e.classList.toggle("scroll-continuous", t === "continuous"), e.classList.toggle("scroll-page", t === "page");
+    const i = this.$("btnScrollContinuous"), o = this.$("btnScrollPage");
+    if (i == null || i.classList.toggle("active", t === "continuous"), o == null || o.classList.toggle("active", t === "page"), this.updateVisiblePages(), t === "page")
+      this.viewMode === "double" ? this.fitPage() : this.fitPage();
+    else {
+      const a = this.viewMode === "double" && this.activePage % 2 === 0 ? this.activePage - 1 : this.activePage, n = this.$(`page-${a}`) || this.$(`page-${this.activePage}`);
+      n == null || n.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    }
+    this.dispatchEvent("scrollmodechanged", { mode: t });
+  }
+  updateVisiblePages() {
+    var c;
+    if (!this.currentDoc) return;
+    const t = this.scrollMode === "page", e = this.viewMode === "double";
+    if (this.viewMode === "grid" || !t) {
+      for (const r of this.currentDoc.pages) {
+        const d = r.page_number, l = this.$(`page-${d}`);
+        l && (l.classList.remove("page-hidden", "book-page-left", "book-page-right", "book-page-single"), l.style.display = "");
+      }
+      return;
+    }
+    if (!e) {
+      for (const p of this.currentDoc.pages) {
+        const m = p.page_number, f = this.$(`page-${m}`);
+        if (f) {
+          const u = m === this.activePage;
+          f.classList.toggle("page-hidden", !u), f.classList.toggle("active-page", u), f.style.display = u ? "" : "none", u && this.renderPageContent(f, m);
+        }
+      }
+      const r = ((c = this.currentDoc.filename.split(".").pop()) == null ? void 0 : c.toLowerCase()) || "", l = r === "dcm" || r === "dicom" ? 8 : 4;
+      for (let p = -2; p <= l; p++) {
+        const m = this.activePage + p;
+        if (m >= 1 && m <= this.currentDoc.page_count && m !== this.activePage) {
+          const f = this.$(`page-${m}`);
+          f && f.dataset.rendered !== "true" && this.renderPageContent(f, m);
+        }
+      }
+      return;
+    }
+    const o = this.activePage % 2 === 1 ? this.activePage : this.activePage - 1, a = o, n = o + 1, s = n <= this.currentDoc.page_count;
+    for (const r of this.currentDoc.pages) {
+      const d = r.page_number, l = this.$(`page-${d}`);
+      if (l) {
+        const p = d === a, m = s && d === n, f = p || m;
+        l.classList.toggle("page-hidden", !f), l.classList.toggle("active-page", f), l.style.display = f ? "" : "none", l.classList.remove("book-page-left", "book-page-right", "book-page-single"), f && (p && s ? l.classList.add("book-page-left") : m ? l.classList.add("book-page-right") : l.classList.add("book-page-single"), this.renderPageContent(l, d));
+      }
+    }
+  }
+  setViewMode(t) {
+    var c;
+    this.viewMode = t;
+    const e = this.$("documentViewport");
+    if (!e) return;
+    e.classList.remove("layout-single", "layout-double", "layout-grid"), e.classList.add(`layout-${t}`);
+    const i = this.$("btnLayoutSingle"), o = this.$("btnLayoutDouble"), a = this.$("btnLayoutGrid");
+    i == null || i.classList.toggle("active", t === "single"), o == null || o.classList.toggle("active", t === "double"), a == null || a.classList.toggle("active", t === "grid");
+    const n = this.$("btnScrollContinuous"), s = this.$("btnScrollPage");
+    n && (n.disabled = t === "grid", n.style.opacity = t === "grid" ? "0.4" : "", n.style.pointerEvents = t === "grid" ? "none" : ""), s && (s.disabled = t === "grid", s.style.opacity = t === "grid" ? "0.4" : "", s.style.pointerEvents = t === "grid" ? "none" : "");
+    for (const r of ((c = this.currentDoc) == null ? void 0 : c.pages) || [])
+      this.updatePageLayoutDimensions(r.page_number);
+    this.updateVisiblePages(), t === "grid" ? this.pagesContainer.querySelectorAll(".page-container").forEach((r) => {
+      const d = parseInt(r.dataset.pageNumber || "1", 10);
+      r.onclick = () => {
+        this.setViewMode("single"), this.goToPage(d);
+      };
+    }) : (this.pagesContainer.querySelectorAll(".page-container").forEach((r) => {
+      r.onclick = null;
+    }), t === "double" ? requestAnimationFrame(() => {
+      this.fitPage();
+    }) : t === "single" && requestAnimationFrame(() => {
+      this.scrollMode === "page" ? this.fitPage() : this.fitWidth();
+    })), this.dispatchEvent("viewmodechanged", { mode: t });
+  }
+  nextSpread() {
+    if (this.currentDoc)
+      if (this.viewMode === "double") {
+        const t = this.activePage % 2 === 1 ? this.activePage : this.activePage - 1, e = t + 2;
+        e <= this.currentDoc.page_count ? this.goToPage(e) : t + 1 <= this.currentDoc.page_count && this.goToPage(t + 1);
+      } else
+        this.goToPage(this.activePage + 1);
+  }
+  prevSpread() {
+    if (this.currentDoc)
+      if (this.viewMode === "double") {
+        const t = this.activePage % 2 === 1 ? this.activePage : this.activePage - 1, e = Math.max(1, t - 2);
+        this.goToPage(e);
+      } else
+        this.goToPage(this.activePage - 1);
+  }
+  toggleFullscreen() {
+    const t = this.root || document.documentElement;
+    document.fullscreenElement ? document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen && document.webkitExitFullscreen() : t.requestFullscreen ? t.requestFullscreen() : t.webkitRequestFullscreen ? t.webkitRequestFullscreen() : t.msRequestFullscreen && t.msRequestFullscreen();
+  }
+  isFullscreen() {
+    return !!document.fullscreenElement;
+  }
+  toggleZenMode() {
+    this.setZenMode(!this.zenMode);
+  }
+  setZenMode(t) {
+    this.zenMode = t;
+    const e = this.root && "querySelector" in this.root && this.root.classList.contains("oxid-viewer-root") ? this.root : this.$(".oxid-viewer-root") || document.querySelector(".oxid-viewer-root");
+    e && e.classList.toggle("zen-mode", t);
+    const i = this.$("btnToggleZenMode");
+    i && (i.classList.toggle("active", t), i.setAttribute("title", t ? "Désactiver le Mode Zen (Réafficher barres d'outils fixes) (Z)" : "Mode Zen (Masquer barres d'outils, réapparition au survol) (Z)")), setTimeout(() => {
+      this.viewMode === "double" ? this.fitPage() : this.viewMode === "single" && (this.scrollMode === "page" ? this.fitPage() : this.fitWidth());
+    }, 150), this.dispatchEvent("zenmodechanged", { enabled: t });
+  }
+  openDocumentBuilder() {
+    if (!this.currentDoc) {
+      alert("Veuillez ouvrir un document avant de lancer le Builder.");
+      return;
+    }
+    const t = this.$("builderModal");
+    if (t) {
+      t.style.display = "flex";
+      const e = this.$("builderGrid"), i = new Ne(this.currentDoc.id, this.currentDoc.pages, (a) => {
+        t.style.display = "none", this.loadDocumentById(a);
+      });
+      i.render(e);
+      const o = this.$("btnApplyBuilder");
+      o && (o.onclick = () => {
+        const a = this.$("builderWatermarkText").value;
+        i.applyBuild(a);
+      });
+    }
+  }
+  openComparisonDialog() {
+    if (!this.currentDoc) {
+      alert("Veuillez ouvrir un document actif avant de comparer.");
+      return;
+    }
+    const t = this.$("compareModal");
+    t && (t.style.display = "flex");
+  }
+  openRedactionDialog() {
+    if (!this.currentDoc) {
+      alert("Veuillez ouvrir un document.");
+      return;
+    }
+    const t = this.$("redactModal");
+    t && (t.style.display = "flex");
+  }
+  toggleSidebar(t) {
+    const e = this.$("appSidebar");
+    if (e)
+      if (t) {
+        if (!e.classList.contains("collapsed") && this.activeSidebarTab === t) {
+          e.classList.add("collapsed"), this.$$(".sidebar-tab").forEach((a) => a.classList.remove("active"));
+          return;
+        }
+        e.classList.remove("collapsed"), this.$$(".sidebar-tab").forEach((a) => {
+          a.getAttribute("data-tab") === t ? a.classList.add("active") : a.classList.remove("active");
+        }), this.activeSidebarTab = t, this.renderSidebarContent(t);
+      } else {
+        const i = !e.classList.contains("collapsed");
+        if (e.classList.toggle("collapsed"), i)
+          this.$$(".sidebar-tab").forEach((o) => o.classList.remove("active"));
+        else {
+          const o = this.activeSidebarTab || "thumbnails";
+          this.$$(".sidebar-tab").forEach((a) => {
+            a.classList.toggle("active", a.getAttribute("data-tab") === o);
+          }), this.renderSidebarContent(o);
+        }
+      }
+  }
+  getMetadata() {
+    return this.currentDoc;
+  }
+  getAnnotations() {
+    return this.allAnnotations;
+  }
+  renderSidebarContent(t) {
+    var i, o, a, n, s, c, r;
+    if (!this.currentDoc) return;
+    this.sidebarContent.innerHTML = "", this.sidebarContent.onscroll = null;
+    const e = this.$("sidebarPanelTitle");
+    if (e) {
+      const d = {
+        thumbnails: "VIGNETTES",
+        bookmarks: "SIGNETS",
+        annotations: `ANNOTATIONS${this.allAnnotations.length > 0 ? ` (${this.allAnnotations.length})` : ""}`,
+        forms: `FORMULAIRE${(i = this.currentForms) != null && i.fields_count ? ` (${this.currentForms.fields_count})` : ""}`,
+        attachments: `PIÈCES JOINTES${(o = this.currentDoc.attachments) != null && o.length ? ` (${this.currentDoc.attachments.length})` : ""}`,
+        "cad-layers": `CALQUES CAO / DAO${(a = this.cadMetadata) != null && a.layers ? ` (${this.cadMetadata.layers.length})` : ""}`,
+        dicom: `IMAGERIE MÉDICALE DICOM${(n = this.dicomMetadata) != null && n.modality ? ` (${this.dicomMetadata.modality})` : ""}`,
+        info: "PROPRIÉTÉS DU DOCUMENT"
+      };
+      e.textContent = d[t] || t.toUpperCase();
+    }
+    if (t === "thumbnails") {
+      const d = ((s = this.currentDoc.filename.split(".").pop()) == null ? void 0 : s.toLowerCase()) || "";
+      if (((c = this.currentDoc.mime_type) == null ? void 0 : c.startsWith("video/")) || ["mp4", "webm", "ogv", "mov", "mkv", "avi", "m4v", "3gp"].includes(d)) {
+        this.sidebarContent.innerHTML = `
+          <div class="thumb-item active" style="position: relative; cursor: pointer; border-radius: 6px; overflow: hidden; border: 2px solid var(--accent); background: #000; padding: 4px;">
+            <img src="/api/documents/${this.currentDoc.id}/pages/1/render?dpi=100" style="width: 100%; border-radius: 4px; height: auto; display: block;" onerror="this.style.display='none'">
+            <div class="video-badge-thumb">▶ VIDÉO</div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px; word-break: break-all;">
+            ${this.currentDoc.filename}
+          </div>
+        `;
+        return;
+      }
+      const p = this.currentDoc.page_count;
+      if (p <= 15)
+        for (const m of this.currentDoc.pages)
+          this.sidebarContent.appendChild(this.createThumbnailItem(m.page_number, !1));
+      else {
+        const m = [];
+        let f = 0;
+        for (let w = 0; w < p; w++)
+          m.push(f), f += this.getPageThumbDimensions(w + 1).itemHeight;
+        const u = document.createElement("div");
+        u.className = "thumb-virtual-container", u.style.height = `${f}px`, this.sidebarContent.appendChild(u);
+        let b = !1;
+        this.sidebarContent.onscroll = () => {
+          b || (requestAnimationFrame(() => {
+            this.updateVirtualizedThumbnails(u, m), b = !1;
+          }), b = !0);
+        }, this.updateVirtualizedThumbnails(u, m);
+      }
+    } else if (t === "bookmarks")
+      if (this.currentDoc.bookmarks.length === 0)
+        this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucun signet dans ce document.</p>';
+      else
+        for (const d of this.currentDoc.bookmarks) {
+          const l = document.createElement("div");
+          l.style.padding = "8px 4px", l.style.fontSize = "13px", l.style.cursor = "pointer", l.textContent = `📑 ${d.title}`, l.onclick = () => this.goToPage(d.page_number), this.sidebarContent.appendChild(l);
+        }
+    else if (t === "annotations")
+      if (this.allAnnotations.length === 0)
+        this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune annotation.</p>';
+      else
+        for (const d of this.allAnnotations) {
+          const l = document.createElement("div");
+          l.style.padding = "8px", l.style.marginBottom = "6px", l.style.background = "var(--bg-primary)", l.style.borderRadius = "4px", l.style.fontSize = "12px";
+          const p = this.escapeHtml(d.content || d.reason || "Surligné"), m = this.escapeHtml(d.annotation_type.toUpperCase());
+          l.innerHTML = `<strong>P.${d.page_number} [${m}]</strong> - ${p}`, l.onclick = () => this.goToPage(d.page_number), this.sidebarContent.appendChild(l);
+        }
+    else if (t === "attachments")
+      if (!this.currentDoc.attachments || this.currentDoc.attachments.length === 0)
+        this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune pièce jointe.</p>';
+      else
+        for (const d of this.currentDoc.attachments) {
+          const l = document.createElement("div");
+          l.style.padding = "10px", l.style.marginBottom = "8px", l.style.background = "var(--bg-primary)", l.style.borderRadius = "6px", l.style.border = "1px solid var(--border)", l.style.display = "flex", l.style.alignItems = "center", l.style.justifyContent = "space-between", l.style.fontSize = "12px";
+          const p = (d.size / 1024).toFixed(1);
+          l.innerHTML = `
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;">
+              <strong>📎 ${this.escapeHtml(d.filename)}</strong><br>
+              <span style="color: var(--text-muted); font-size: 11px;">${p} Ko (${this.escapeHtml(d.mime_type)})</span>
+            </div>
+          `, this.sidebarContent.appendChild(l);
+        }
+    else if (t === "forms") {
+      const d = this.formRenderer.getFields();
+      if (d.length === 0)
+        this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucun champ de formulaire interactif détecté.</p>';
+      else {
+        const l = document.createElement("div");
+        l.style.cssText = "padding: 8px 4px; font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--border); margin-bottom: 8px;", l.textContent = `${d.length} champs détectés`, this.sidebarContent.appendChild(l);
+        for (const p of d) {
+          const m = document.createElement("div");
+          m.style.cssText = "padding: 10px; margin-bottom: 8px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border); font-size: 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: border-color 0.15s;";
+          const f = this.escapeHtml(p.name), u = this.escapeHtml(p.field_type), b = this.escapeHtml(this.formRenderer.getValue(p.name) || "(vide)");
+          m.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: var(--accent);">${f}</strong>
+              <span style="font-size: 10px; background: var(--bg-secondary); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--border);">${u}</span>
+            </div>
+            <div style="color: var(--text-muted); font-size: 11px;">Page ${p.page_number} ${p.required ? '• <span style="color:#ef4444;">Requis</span>' : ""}</div>
+            <div style="font-size: 12px; color: var(--text-main); word-break: break-all;">Valeur: <span style="font-family: monospace; background: var(--bg-secondary); padding: 1px 4px; border-radius: 3px;">${b}</span></div>
+          `, m.onclick = () => {
+            this.goToPage(p.page_number), setTimeout(() => {
+              const w = document.querySelector(`[data-field-name="${p.name}"]`);
+              w && (w.focus(), w.scrollIntoView({ behavior: "smooth", block: "center" }));
+            }, 300);
+          }, this.sidebarContent.appendChild(m);
+        }
+      }
+    } else if (t === "info") {
+      const d = this.currentDoc, l = (d.file_size / (1024 * 1024)).toFixed(2), p = (d.file_size / 1024).toFixed(1), m = d.file_size > 1024 * 1024 ? `${l} Mo (${d.file_size.toLocaleString()} octets)` : `${p} Ko`, f = d.pages[0], u = f ? `${f.width} × ${f.height} pt` : "Inconnu", b = this.permissions, w = document.createElement("div");
+      w.style.cssText = "display: flex; flex-direction: column; gap: 12px; font-size: 12px;";
+      const k = document.createElement("div");
+      k.style.cssText = "background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px;", k.innerHTML = `
+        <div style="font-weight: 700; color: var(--accent); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 4px;">
+          📄 Document
+        </div>
+        <div style="display: flex; justify-content: space-between; word-break: break-all;">
+          <span style="color: var(--text-muted);">Nom :</span>
+          <strong style="text-align: right; max-width: 150px;">${this.escapeHtml(d.filename)}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Pages :</span>
+          <strong>${d.page_count}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Taille :</span>
+          <span>${m}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Type MIME :</span>
+          <span>${this.escapeHtml(d.mime_type)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Dimensions P.1 :</span>
+          <span>${u}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Signets :</span>
+          <span>${d.bookmarks.length}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Pièces jointes :</span>
+          <span>${((r = d.attachments) == null ? void 0 : r.length) || 0}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Annotations :</span>
+          <span>${this.allAnnotations.length}</span>
+        </div>
+      `, w.appendChild(k);
+      const M = document.createElement("div");
+      M.style.cssText = "background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px;", M.innerHTML = `
+        <div style="font-weight: 700; color: #f59e0b; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 4px;">
+          🛡️ Sécurité & Droits RBAC
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Téléchargement :</span>
+          <span>${b.canDownload !== !1 && !b.readOnly ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Impression :</span>
+          <span>${b.canPrint !== !1 && !b.readOnly ? "✅ Autorisée" : "❌ Bloquée"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Biffure / RGPD :</span>
+          <span>${b.canRedact !== !1 && !b.readOnly ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Signature :</span>
+          <span>${b.canSign !== !1 && !b.readOnly ? "✅ Autorisée" : "❌ Bloquée"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Builder & Fusion :</span>
+          <span>${b.canBuild !== !1 && !b.readOnly ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Rotation des pages :</span>
+          <span>${b.canRotate !== !1 ? "✅ Autorisée" : "❌ Bloquée"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Modes d'affichage :</span>
+          <span>${b.canChangeViewMode !== !1 ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Modes de défilement :</span>
+          <span>${b.canChangeScrollMode !== !1 ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Mode Zen :</span>
+          <span>${b.canZenMode !== !1 ? "✅ Autorisé" : "❌ Bloqué"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Mode Lecture seule :</span>
+          <span>${b.readOnly ? "🔴 Oui" : "🟢 Non"}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Filigrane dynamique :</span>
+          <span>${this.watermarkText ? "🛡️ Actif" : "Aucun"}</span>
+        </div>
+      `, w.appendChild(M), this.sidebarContent.appendChild(w);
+    } else t === "cad-layers" ? this.renderCadLayersContent() : t === "dicom" && this.renderDicomContent();
+  }
+  // =========================================================================
+  // CAD / DAO Plans & Technical Layers Management
+  // =========================================================================
+  async loadCadLayers() {
+    if (this.currentDoc)
+      try {
+        const t = await fetch(`/api/documents/${this.currentDoc.id}/cad/layers`);
+        if (t.ok) {
+          const e = await t.json(), i = Array.isArray(e) ? e : e.layers || [];
+          this.cadMetadata = { layers: i }, this.activeCadLayers = new Set(i.map((n) => n.name));
+          const o = this.$("cadLayersTab"), a = this.$("cadLayersBadge");
+          o && (o.style.display = "flex"), a && (a.style.display = "flex", a.textContent = i.length.toString()), this.activeSidebarTab === "cad-layers" && this.renderSidebarContent("cad-layers");
+        }
+      } catch (t) {
+        console.warn("Failed to load CAD layers:", t);
+      }
+  }
+  getCadLayers() {
+    var t;
+    return ((t = this.cadMetadata) == null ? void 0 : t.layers) || [];
+  }
+  toggleCadLayer(t, e) {
+    (e !== void 0 ? e : !this.activeCadLayers.has(t)) ? this.activeCadLayers.add(t) : this.activeCadLayers.delete(t), this.refreshCadRendering(), this.activeSidebarTab === "cad-layers" && this.renderSidebarContent("cad-layers"), this.dispatchEvent("cadlayerschange", { layers: Array.from(this.activeCadLayers) });
+  }
+  setCadLayers(t) {
+    this.activeCadLayers = new Set(t), this.refreshCadRendering(), this.activeSidebarTab === "cad-layers" && this.renderSidebarContent("cad-layers"), this.dispatchEvent("cadlayerschange", { layers: t });
+  }
+  refreshCadRendering() {
+    if (!this.currentDoc) return;
+    const t = encodeURIComponent(Array.from(this.activeCadLayers).join(","));
+    for (const e of this.currentDoc.pages) {
+      const i = e.page_number, o = this.$(`page-${i}`);
+      if (o && o.dataset.rendered === "true") {
+        const a = o.querySelector(".page-image");
+        a && (a.src = `/api/documents/${this.currentDoc.id}/pages/${i}/render?dpi=120&layers=${t}&t=${Date.now()}`);
+      }
+    }
+  }
+  renderCadLayersContent() {
+    var s, c;
+    if (!this.cadMetadata || !this.cadMetadata.layers) {
+      this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Chargement des calques CAO / DAO...</p>';
+      return;
+    }
+    const t = this.cadMetadata.layers, e = t.reduce((r, d) => r + (d.entity_count || 0), 0), i = document.createElement("div");
+    i.className = "cad-panel", i.innerHTML = `
+      <div style="font-size: 11px; color: var(--text-muted); padding-bottom: 4px; border-bottom: 1px solid var(--border);">
+        <strong>${t.length}</strong> calques • <strong>${e}</strong> entités vectorielles
+      </div>
+      <div class="cad-panel-toolbar">
+        <input type="text" class="cad-search-input" id="cadLayerFilter" placeholder="Filtrer les calques...">
+        <button class="cad-btn-action" id="btnCadSelectAll" title="Afficher tous les calques">Tous</button>
+        <button class="cad-btn-action" id="btnCadDeselectAll" title="Masquer tous les calques">Aucun</button>
+      </div>
+      <div class="cad-layers-list" id="cadLayersList"></div>
+    `;
+    const o = i.querySelector("#cadLayersList"), a = (r = "") => {
+      o.innerHTML = "";
+      const d = r.toLowerCase(), l = t.filter((p) => p.name.toLowerCase().includes(d));
+      if (l.length === 0) {
+        o.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 12px; text-align: center;">Aucun calque trouvé</div>';
+        return;
+      }
+      for (const p of l) {
+        const m = document.createElement("div"), f = this.activeCadLayers.has(p.name);
+        m.className = `cad-layer-item ${f ? "" : "disabled"}`, m.innerHTML = `
+          <input type="checkbox" class="cad-layer-checkbox" ${f ? "checked" : ""}>
+          <div class="cad-layer-color" style="background-color: ${p.color_hex};"></div>
+          <span class="cad-layer-name" title="${p.name}">${p.name}</span>
+          <span class="cad-layer-count" title="${p.entity_count} éléments">${p.entity_count}</span>
+        `;
+        const u = m.querySelector(".cad-layer-checkbox"), b = (w) => {
+          w.stopPropagation(), this.toggleCadLayer(p.name);
+        };
+        u.addEventListener("change", b), m.addEventListener("click", (w) => {
+          w.target !== u && (u.checked = !u.checked, this.toggleCadLayer(p.name));
+        }), o.appendChild(m);
+      }
+    };
+    a();
+    const n = i.querySelector("#cadLayerFilter");
+    n == null || n.addEventListener("input", () => {
+      a(n.value.trim());
+    }), (s = i.querySelector("#btnCadSelectAll")) == null || s.addEventListener("click", () => {
+      this.setCadLayers(t.map((r) => r.name));
+    }), (c = i.querySelector("#btnCadDeselectAll")) == null || c.addEventListener("click", () => {
+      this.setCadLayers([]);
+    }), this.sidebarContent.appendChild(i);
+  }
+  // =========================================================================
+  // DICOM Medical Imaging & Contrast Windowing (HU)
+  // =========================================================================
+  async loadDicomData() {
+    if (this.currentDoc)
+      try {
+        const t = await fetch(`/api/documents/${this.currentDoc.id}/dicom/metadata`);
+        if (t.ok) {
+          this.dicomMetadata = await t.json();
+          const e = this.dicomMetadata.default_window_center ?? this.dicomMetadata.window_center ?? 40, i = this.dicomMetadata.default_window_width ?? this.dicomMetadata.window_width ?? 400;
+          this.dicomWc = typeof e == "number" && !isNaN(e) ? e : 40, this.dicomWw = typeof i == "number" && !isNaN(i) ? i : 400;
+          const o = this.$("dicomTab"), a = this.$("dicomBadge"), n = this.$("dicomControlsGroup");
+          o && (o.style.display = "flex"), a && (a.style.display = "flex", a.textContent = this.dicomMetadata.modality || "CT"), n && (n.style.display = "flex");
+          for (const s of this.currentDoc.pages) {
+            const c = this.$(`page-${s.page_number}`);
+            if (c) {
+              const r = c.querySelector(".page-content") || c;
+              this.attachPacsOverlay(r, s.page_number);
+            }
+          }
+          this.activeSidebarTab === "dicom" && this.renderSidebarContent("dicom");
+        }
+      } catch (t) {
+        console.warn("Failed to load DICOM metadata:", t);
+      }
+  }
+  getDicomMetadata() {
+    return this.dicomMetadata;
+  }
+  applyDicomPreset(t) {
+    var a, n, s, c;
+    const e = {
+      soft_tissue: { wc: 40, ww: 400, label: "Tissus mous" },
+      lung: { wc: -600, ww: 1500, label: "Poumons" },
+      bone: { wc: 400, ww: 1800, label: "Os / Squelette" },
+      brain: { wc: 40, ww: 80, label: "Cerveau / AVC" },
+      mediastinum: { wc: 50, ww: 350, label: "Médiastin" },
+      default: {
+        wc: ((a = this.dicomMetadata) == null ? void 0 : a.default_window_center) ?? ((n = this.dicomMetadata) == null ? void 0 : n.window_center) ?? 40,
+        ww: ((s = this.dicomMetadata) == null ? void 0 : s.default_window_width) ?? ((c = this.dicomMetadata) == null ? void 0 : c.window_width) ?? 400,
+        label: "Défaut"
+      }
+    }, i = e[t] || e.default, o = this.$("dicomPresetLabel");
+    o && (o.textContent = i.label), this.$$("[data-preset]").forEach((r) => {
+      const d = r.getAttribute("data-preset") === t;
+      r.classList.toggle("active", d);
+      const l = r.querySelector(".dropdown-check");
+      l && (l.innerHTML = d ? "✓" : "&nbsp;");
+    }), this.$$("[data-preset-name]").forEach((r) => {
+      r.classList.toggle("active", r.getAttribute("data-preset-name") === t);
+    }), this.setDicomWindow(i.wc, i.ww);
+  }
+  setDicomWindow(t, e) {
+    this.dicomCustomWindow = !0, this.dicomWc = t, this.dicomWw = Math.max(1, e), this.$$(".pacs-wc-ww").forEach((c) => {
+      c.textContent = `WC: ${this.dicomWc} WW: ${this.dicomWw}`;
+    });
+    const i = this.$("dicomSliderWc"), o = this.$("dicomSliderWw"), a = this.$("dicomValWc"), n = this.$("dicomValWw"), s = this.$("dicomHuRange");
+    if (i && (i.value = this.dicomWc.toString()), o && (o.value = this.dicomWw.toString()), a && (a.textContent = `${this.dicomWc} HU`), n && (n.textContent = `${this.dicomWw} HU`), s) {
+      const c = Math.round(this.dicomWc - this.dicomWw / 2), r = Math.round(this.dicomWc + this.dicomWw / 2);
+      s.textContent = `Plage : [${c} HU → ${r} HU]`;
+    }
+    this.dicomWindowingTimeout && clearTimeout(this.dicomWindowingTimeout), this.dicomWindowingTimeout = setTimeout(() => {
+      this.refreshDicomRendering(), this.dispatchEvent("dicomwindowchange", { wc: this.dicomWc, ww: this.dicomWw });
+    }, 40);
+  }
+  refreshDicomRendering() {
+    if (this.currentDoc)
+      for (const t of this.currentDoc.pages) {
+        const e = t.page_number, i = this.$(`page-${e}`);
+        if (i && i.dataset.rendered === "true") {
+          const o = i.querySelector(".page-image");
+          o && (typeof this.dicomWc == "number" && !isNaN(this.dicomWc) && typeof this.dicomWw == "number" && !isNaN(this.dicomWw) ? o.src = `/api/documents/${this.currentDoc.id}/pages/${e}/render?dpi=120&wc=${this.dicomWc}&ww=${this.dicomWw}&t=${Date.now()}` : o.src = `/api/documents/${this.currentDoc.id}/pages/${e}/render?dpi=120&t=${Date.now()}`);
+        }
+      }
+  }
+  toggleDicomCine() {
+    if (this.dicomCineInterval)
+      this.stopDicomCine();
+    else {
+      if (!this.currentDoc || this.currentDoc.page_count <= 1) return;
+      this.updateCineBtn(!0), this.dicomCineInterval = setInterval(() => {
+        if (!this.currentDoc) return;
+        const t = this.activePage % this.currentDoc.page_count + 1;
+        this.goToPage(t);
+      }, 66);
+    }
+  }
+  stopDicomCine() {
+    this.dicomCineInterval && (clearInterval(this.dicomCineInterval), this.dicomCineInterval = null, this.updateCineBtn(!1));
+  }
+  updateCineBtn(t) {
+    const e = this.$("btnDicomCinePlay");
+    e && (e.classList.toggle("btn-cine-playing", t), e.innerHTML = t ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>');
+  }
+  attachPacsOverlay(t, e) {
+    let i = t.querySelector(".pacs-overlay");
+    i || (i = document.createElement("div"), i.className = "pacs-overlay", t.appendChild(i));
+    const o = this.dicomMetadata || {}, a = o.patient_name || "ANONYMOUS", n = o.patient_id || "N/A", s = o.modality || "CT", c = o.study_date || "", r = Math.round(this.currentZoom * 100), d = this.getPageRotation(e);
+    i.innerHTML = `
+      <div class="pacs-overlay-top">
+        <div class="pacs-corner">
+          <span>${a}</span>
+          <span>ID: ${n}</span>
+        </div>
+        <div class="pacs-corner pacs-corner-right">
+          <span>${c}</span>
+          <span>MOD: ${s}</span>
+        </div>
+      </div>
+      <div class="pacs-overlay-bottom">
+        <div class="pacs-corner">
+          <span>ZOOM: ${r}%</span>
+          <span>ROT: ${d}°</span>
+        </div>
+        <div class="pacs-corner pacs-corner-right">
+          <span class="pacs-wc-ww">WC: ${this.dicomWc} WW: ${this.dicomWw}</span>
+          <span>HU: VOI LUT</span>
+        </div>
+      </div>
+    `;
+  }
+  renderDicomContent() {
+    if (!this.dicomMetadata) {
+      this.sidebarContent.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Chargement des données DICOM...</p>';
+      return;
+    }
+    const t = this.dicomMetadata, e = Math.round(this.dicomWc - this.dicomWw / 2), i = Math.round(this.dicomWc + this.dicomWw / 2), o = document.createElement("div");
+    o.className = "dicom-panel", o.innerHTML = `
+      <!-- Section Informations Patient / PACS -->
+      <div class="dicom-section">
+        <div class="dicom-section-title">
+          <span>🩺 Examen Médical</span>
+          <span style="font-size: 10px; background: rgba(16, 185, 129, 0.2); padding: 1px 6px; border-radius: 4px;">${t.modality || "CT"}</span>
+        </div>
+        <div class="dicom-meta-row">
+          <span class="dicom-meta-label">Patient :</span>
+          <span class="dicom-meta-value">${t.patient_name || "Anonymisé"}</span>
+        </div>
+        <div class="dicom-meta-row">
+          <span class="dicom-meta-label">ID Patient :</span>
+          <span class="dicom-meta-value">${t.patient_id || "N/A"}</span>
+        </div>
+        <div class="dicom-meta-row">
+          <span class="dicom-meta-label">Date :</span>
+          <span class="dicom-meta-value">${t.study_date || "N/A"}</span>
+        </div>
+        <div class="dicom-meta-row">
+          <span class="dicom-meta-label">Matrice :</span>
+          <span class="dicom-meta-value">${t.columns} × ${t.rows} px</span>
+        </div>
+        <div class="dicom-meta-row">
+          <span class="dicom-meta-label">Bits alloués :</span>
+          <span class="dicom-meta-value">${t.bits_allocated} bits (${t.bits_stored} bits stockés)</span>
+        </div>
+      </div>
+
+      <!-- Section Préréglages Hounsfield -->
+      <div class="dicom-section">
+        <div class="dicom-section-title">
+          <span>🎯 Préréglages de Contraste</span>
+        </div>
+        <div class="dicom-presets-grid">
+          <button class="dicom-preset-btn" data-preset-name="soft_tissue">
+            <span>🫀 Tissus mous</span>
+            <span class="dicom-preset-sub">40 / 400 HU</span>
+          </button>
+          <button class="dicom-preset-btn" data-preset-name="lung">
+            <span>🫁 Poumons</span>
+            <span class="dicom-preset-sub">-600 / 1500 HU</span>
+          </button>
+          <button class="dicom-preset-btn" data-preset-name="bone">
+            <span>🦴 Os / Squelette</span>
+            <span class="dicom-preset-sub">400 / 1800 HU</span>
+          </button>
+          <button class="dicom-preset-btn" data-preset-name="brain">
+            <span>🧠 Cerveau / AVC</span>
+            <span class="dicom-preset-sub">40 / 80 HU</span>
+          </button>
+          <button class="dicom-preset-btn" data-preset-name="mediastinum">
+            <span>🫁 Médiastin</span>
+            <span class="dicom-preset-sub">50 / 350 HU</span>
+          </button>
+          <button class="dicom-preset-btn" data-preset-name="default">
+            <span>🔄 Réinitialiser</span>
+            <span class="dicom-preset-sub">Défaut DICOM</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section Réglage Manuel (VOI LUT) -->
+      <div class="dicom-section">
+        <div class="dicom-section-title">
+          <span>🎚️ Fenêtrage Manuel (VOI LUT)</span>
+        </div>
+        
+        <div class="dicom-control-group">
+          <div class="dicom-slider-header">
+            <span>Niveau (WC / Center) :</span>
+            <span id="dicomValWc" style="font-weight: 700; color: #10b981; font-family: monospace;">${this.dicomWc} HU</span>
+          </div>
+          <input type="range" class="dicom-slider" id="dicomSliderWc" min="-1000" max="2000" step="5" value="${this.dicomWc}">
+        </div>
+
+        <div class="dicom-control-group">
+          <div class="dicom-slider-header">
+            <span>Largeur (WW / Width) :</span>
+            <span id="dicomValWw" style="font-weight: 700; color: #10b981; font-family: monospace;">${this.dicomWw} HU</span>
+          </div>
+          <input type="range" class="dicom-slider" id="dicomSliderWw" min="1" max="4000" step="5" value="${this.dicomWw}">
+        </div>
+
+        <div class="dicom-hu-display" id="dicomHuRange">
+          Plage : [${e} HU → ${i} HU]
+        </div>
+      </div>
+    `, o.querySelectorAll("[data-preset-name]").forEach((c) => {
+      c.addEventListener("click", () => {
+        const r = c.getAttribute("data-preset-name");
+        r && this.applyDicomPreset(r);
+      });
+    });
+    const a = o.querySelector("#dicomSliderWc"), n = o.querySelector("#dicomSliderWw"), s = () => {
+      const c = parseInt(a.value, 10), r = parseInt(n.value, 10);
+      this.setDicomWindow(c, r);
+    };
+    a.addEventListener("input", s), n.addEventListener("input", s), this.sidebarContent.appendChild(o);
+  }
+  getPageThumbDimensions(t) {
+    var r;
+    const e = (r = this.currentDoc) == null ? void 0 : r.pages[t - 1], i = e && e.height > 0 ? e.width / e.height : 595 / 842, o = this.getPageRotation(t), n = Math.abs(o % 180) === 90 ? 1 / i : i;
+    let s = 140, c = 180;
+    return n >= 1 ? (s = 140, c = Math.max(40, Math.round(140 / n))) : (c = 180, s = Math.max(40, Math.min(140, Math.round(180 * n)))), { width: s, height: c, itemHeight: c + 28 };
+  }
+  createThumbnailItem(t, e = !1, i = 0) {
+    const o = document.createElement("div");
+    o.className = `thumb-item ${e ? "virtualized" : ""} ${t === this.activePage ? "active" : ""}`, o.id = `thumb-${t}`, o.setAttribute("data-page", t.toString()), e && (o.style.top = `${i}px`), o.onclick = () => this.goToPage(t);
+    const a = this.getPageThumbDimensions(t), n = document.createElement("div");
+    n.className = "thumb-preview", n.style.width = `${a.width}px`, n.style.height = `${a.height}px`;
+    const s = this.getPageRotation(t), c = Math.abs(s % 180) === 90;
+    n.classList.toggle("rotated-sideways", c), n.style.setProperty("--thumb-rot", `${s}deg`);
+    const r = document.createElement("img");
+    r.loading = "lazy", r.style.transform = `translate(-50%, -50%) rotate(${s}deg)`;
+    const d = document.createElement("button");
+    d.className = "thumb-rotate-btn", d.title = `Pivoter la page ${t} de 90°`, d.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>', d.onclick = (m) => {
+      m.stopPropagation(), this.rotate(90, t);
+    }, o.appendChild(d);
+    const l = this.cachedThumbBlobs.get(t);
+    l ? r.src = l : t <= 3 && (r.src = `/api/documents/${this.currentDoc.id}/pages/${t}/thumbnail`), n.appendChild(r);
+    const p = document.createElement("div");
+    return p.className = "thumb-label", p.textContent = `Page ${t}`, o.appendChild(n), o.appendChild(p), !r.src && this.thumbIntersectionObserver && this.thumbIntersectionObserver.observe(o), o;
+  }
+  updateVirtualizedThumbnails(t, e) {
+    if (!this.currentDoc || e.length === 0) return;
+    const i = this.sidebarContent.scrollTop, o = this.sidebarContent.clientHeight || 800, a = this.currentDoc.page_count;
+    let n = 0;
+    for (; n < a - 1 && e[n + 1] < i; )
+      n++;
+    n = Math.max(0, n - 1);
+    let s = n;
+    const c = i + o;
+    for (; s < a - 1 && e[s] < c; )
+      s++;
+    s = Math.min(a - 1, s + 1);
+    const r = [];
+    for (let d = n; d <= s; d++)
+      r.push(d + 1);
+    this.renderWorker && r.length > 0 && this.renderWorker.postMessage({
+      type: "PRELOAD_THUMBNAILS",
+      docId: this.currentDoc.id,
+      pages: r
+    }), t.innerHTML = "";
+    for (let d = n; d <= s; d++) {
+      const l = d + 1, p = this.createThumbnailItem(l, !0, e[d]);
+      t.appendChild(p);
+    }
+  }
+  searchInDocument(t) {
+    if (this.searchMatches = [], this.currentSearchIndex = -1, !t.trim()) {
+      this.clearSearch();
+      return;
+    }
+    this.textRenderers.forEach((i, o) => {
+      const a = i.highlightSearch(t);
+      for (const n of a)
+        this.searchMatches.push({ pageNumber: o, element: n });
+    });
+    const e = this.$("searchCount");
+    e && (e.textContent = this.searchMatches.length > 0 ? `0 / ${this.searchMatches.length}` : "0 trouvé"), this.searchMatches.length > 0 && this.navigateSearch(1);
+  }
+  clearSearch() {
+    this.textRenderers.forEach((e) => e.clearHighlights()), this.searchMatches = [], this.currentSearchIndex = -1;
+    const t = this.$("searchCount");
+    t && (t.textContent = "0/0");
+  }
+  navigateSearch(t) {
+    if (this.searchMatches.length === 0) return;
+    this.currentSearchIndex >= 0 && this.currentSearchIndex < this.searchMatches.length && this.searchMatches[this.currentSearchIndex].element.classList.remove("highlight-active"), this.currentSearchIndex += t, this.currentSearchIndex >= this.searchMatches.length ? this.currentSearchIndex = 0 : this.currentSearchIndex < 0 && (this.currentSearchIndex = this.searchMatches.length - 1);
+    const e = this.searchMatches[this.currentSearchIndex];
+    e.element.classList.add("highlight-active"), e.element.scrollIntoView({ behavior: "smooth", block: "center" }), this.activePage !== e.pageNumber && (this.activePage = e.pageNumber, this.pageNumberInput.value = this.activePage.toString());
+    const i = this.$("searchCount");
+    i && (i.textContent = `${this.currentSearchIndex + 1} / ${this.searchMatches.length}`);
+  }
+  // --- PII / RGPD Assistant Methods ---
+  async runPiiScan() {
+    if (!this.currentDoc) {
+      alert("Veuillez ouvrir un document avant de lancer le scan RGPD.");
+      return;
+    }
+    const t = this.$("piiModal");
+    t && (t.style.display = "flex");
+    const e = this.$("piiScanLoading"), i = this.$("piiScanEmpty"), o = this.$("piiScanResults"), a = this.$("btnApplyPiiRedactions"), n = this.$("piiSummaryCount");
+    e && (e.style.display = "block"), i && (i.style.display = "none"), o && (o.style.display = "none", o.innerHTML = ""), a && (a.disabled = !0), n && (n.textContent = "");
+    try {
+      const s = await fetch(`/api/documents/${this.currentDoc.id}/pii-scan`);
+      if (!s.ok) {
+        alert("Échec de l'analyse PII");
+        return;
+      }
+      const c = await s.json();
+      if (this.currentPiiItems = c.items || [], e && (e.style.display = "none"), this.currentPiiItems.length === 0) {
+        i && (i.style.display = "block");
+        return;
+      }
+      if (o) {
+        o.style.display = "block", o.innerHTML = "";
+        for (let r = 0; r < this.currentPiiItems.length; r++) {
+          const d = this.currentPiiItems[r], l = document.createElement("div");
+          l.className = "pii-item-row";
+          const p = `pii-badge-${d.category}`, m = {
+            iban: "IBAN SEPA",
+            credit_card: "Carte Bancaire",
+            social_security: "Sécurité Sociale (NIR)",
+            email: "E-mail",
+            phone: "Téléphone"
+          }[d.category] || d.category;
+          l.innerHTML = `
+            <input type="checkbox" id="pii-chk-${r}" checked style="cursor: pointer;">
+            <span class="pii-badge ${p}">${m}</span>
+            <div style="flex: 1; font-family: monospace;">
+              <strong>${d.masked_preview}</strong>
+              <span style="color: var(--text-muted); font-size: 11px; margin-left: 8px;">(P.${d.page_number})</span>
+            </div>
+          `, l.onclick = (f) => {
+            if (f.target.tagName !== "INPUT") {
+              const u = l.querySelector("input");
+              u && (u.checked = !u.checked);
+            }
+            this.updatePiiApplyButtonState();
+          }, o.appendChild(l);
+        }
+      }
+      n && (n.textContent = `${this.currentPiiItems.length} élément(s) sensible(s) détecté(s)`), a && (a.disabled = !1);
+    } catch (s) {
+      console.error("PII scan error", s), e && (e.style.display = "none"), alert(`Erreur d'analyse: ${s}`);
+    }
+  }
+  updatePiiApplyButtonState() {
+    const t = this.$("btnApplyPiiRedactions"), e = this.$$('#piiScanResults input[type="checkbox"]:checked');
+    t && (t.disabled = e.length === 0, t.textContent = `Biffer la sélection (${e.length}) en 1-clic`);
+  }
+  async applySelectedPiiRedactions() {
+    if (!this.currentDoc) return;
+    const t = this.$$('#piiScanResults input[type="checkbox"]'), e = [];
+    if (t.forEach((o, a) => {
+      if (o.checked && this.currentPiiItems[a]) {
+        const n = this.currentPiiItems[a];
+        e.push({
+          page_number: n.page_number,
+          x: n.x,
+          y: n.y,
+          width: n.width,
+          height: n.height,
+          reason: "RGPD / Donnée Confidentielle",
+          overlay_text: "DONNEE SENSIBLE RGPD"
+        });
+      }
+    }), e.length === 0) {
+      alert("Veuillez sélectionner au moins un élément à biffer.");
+      return;
+    }
+    const i = this.$("piiModal");
+    try {
+      const o = await fetch(`/api/documents/${this.currentDoc.id}/redact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          document_id: this.currentDoc.id,
+          items: e
+        })
+      });
+      if (!o.ok) {
+        alert("Échec de la biffure automatique.");
+        return;
+      }
+      const a = await o.json();
+      i && (i.style.display = "none"), alert(`Biffure de conformité RGPD appliquée sur ${e.length} élément(s) ! Chargement du document sécurisé...`), this.loadDocumentById(a.id);
+    } catch (o) {
+      alert(`Erreur lors de l'application de la biffure RGPD: ${o}`);
+    }
+  }
+  updateBurnInButton() {
+    const t = this.allAnnotations.some((i) => i.annotation_type === "redact"), e = this.$("btnOpenBurnIn");
+    e && (e.style.display = t ? "flex" : "none");
+  }
+  setupSelectionToolbar() {
+    var i, o, a;
+    const t = document.createElement("div");
+    t.className = "selection-floating-toolbar", t.style.display = "none", t.innerHTML = `
+      <button id="selBtnHighlight">🖍️ Surligner</button>
+      <button id="selBtnNote">📝 Note</button>
+      <button id="selBtnRedact">⬛ Biffer</button>
+    `, document.body.appendChild(t);
+    const e = () => {
+      t.style.display = "none";
+    };
+    document.addEventListener("selectionchange", () => {
+      if (this.currentTool !== "select") {
+        e();
+        return;
+      }
+      const n = window.getSelection();
+      if (!n || n.isCollapsed || !n.toString().trim()) {
+        e();
+        return;
+      }
+      if (n.rangeCount === 0) {
+        e();
+        return;
+      }
+      const c = n.getRangeAt(0).getBoundingClientRect();
+      if (c.width <= 0 || c.height <= 0) {
+        e();
+        return;
+      }
+      if (!this.pagesContainer) {
+        e();
+        return;
+      }
+      const r = this.pagesContainer.getBoundingClientRect();
+      if (c.bottom < r.top || c.top > r.bottom || c.right < r.left || c.left > r.right) {
+        e();
+        return;
+      }
+      t.style.display = "flex";
+      const d = 240, l = Math.max(10, Math.min(window.innerWidth - d - 10, c.left + c.width / 2 - d / 2)), p = Math.max(10, c.top - 46);
+      t.style.left = `${l}px`, t.style.top = `${p}px`;
+    }), (i = t.querySelector("#selBtnHighlight")) == null || i.addEventListener("mousedown", (n) => {
+      n.preventDefault(), n.stopPropagation(), this.applySelectionAnnotation("highlight"), e();
+    }), (o = t.querySelector("#selBtnRedact")) == null || o.addEventListener("mousedown", (n) => {
+      n.preventDefault(), n.stopPropagation(), this.applySelectionAnnotation("redact"), e();
+    }), (a = t.querySelector("#selBtnNote")) == null || a.addEventListener("mousedown", (n) => {
+      n.preventDefault(), n.stopPropagation(), this.applySelectionNote(), e();
+    }), window.addEventListener("mousedown", (n) => {
+      t.contains(n.target) || e();
+    });
+  }
+  applySelectionAnnotation(t) {
+    const e = window.getSelection();
+    if (!e || e.isCollapsed || e.rangeCount === 0) return;
+    const i = e.getRangeAt(0);
+    this.annotationManagers.forEach((o) => {
+      o.createAnnotationsFromSelectionRange(i, t);
+    }), e.removeAllRanges();
+  }
+  applySelectionNote() {
+    const t = window.getSelection();
+    if (!t || t.isCollapsed || t.rangeCount === 0) return;
+    const e = t.getRangeAt(0), i = t.toString().trim(), o = e.getClientRects();
+    if (o.length > 0) {
+      const a = o[o.length - 1];
+      for (const [n, s] of this.annotationManagers.entries()) {
+        const c = this.$(`page-${n}`);
+        if (c) {
+          const r = c.getBoundingClientRect();
+          if (a.bottom >= r.top && a.top <= r.bottom) {
+            const d = Math.max(10, a.right - r.left + 5), l = Math.max(10, a.bottom - r.top + 5);
+            s.openNoteCreatePopover(d, l, `« ${i.slice(0, 60)}${i.length > 60 ? "..." : ""} »
+`);
+            break;
+          }
+        }
+      }
+    }
+    t.removeAllRanges();
+  }
+  async loadAnnotations() {
+    if (this.currentDoc)
+      try {
+        const t = await fetch(`/api/documents/${this.currentDoc.id}/annotations`);
+        t.ok && (this.allAnnotations = await t.json(), this.annotationManagers.forEach((e) => e.setAnnotations(this.allAnnotations)), this.updateBurnInButton(), this.updateAnnotationsBadge());
+      } catch (t) {
+        console.warn("Failed to load annotations", t);
+      }
+  }
+  async saveAnnotations() {
+    if (this.currentDoc)
+      try {
+        await fetch(`/api/documents/${this.currentDoc.id}/annotations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(this.allAnnotations)
+        }), this.updateBurnInButton(), this.updateAnnotationsBadge(), this.dispatchEvent("annotationsaved", { count: this.allAnnotations.length });
+      } catch (t) {
+        console.error("Failed to save annotations", t);
+      }
+  }
+  updateAnnotationsBadge() {
+    const t = this.$("annotationsBadge");
+    t && (this.allAnnotations.length > 0 ? (t.style.display = "flex", t.textContent = this.allAnnotations.length.toString()) : t.style.display = "none");
+  }
+  async loadFormFields() {
+    if (!this.currentDoc) return null;
+    try {
+      const t = await fetch(`/api/documents/${this.currentDoc.id}/forms`);
+      if (!t.ok) return null;
+      const e = await t.json();
+      this.currentForms = e, this.formRenderer.setFields(e.fields);
+      const i = this.$("btnSaveForms"), o = this.$("formsTab"), a = this.$("formsBadge");
+      return e.has_forms ? (i && (i.style.display = "inline-flex"), o && (o.style.display = "flex"), a && (a.style.display = "flex", a.textContent = e.fields_count.toString()), document.querySelectorAll('.page-container[data-rendered="true"]').forEach((n) => {
+        const s = parseInt(n.dataset.pageNumber || "1", 10);
+        this.formRenderer.render(n, s, this.currentZoom);
+      })) : (i && (i.style.display = "none"), o && (o.style.display = "none"), a && (a.style.display = "none")), this.dispatchEvent("formloaded", e), e;
+    } catch (t) {
+      return console.error("Failed to load forms:", t), null;
+    }
+  }
+  getFormFields() {
+    return this.formRenderer.getFields();
+  }
+  getFormValues() {
+    return this.formRenderer.getAllValues();
+  }
+  setFormFieldValue(t, e) {
+    this.formRenderer.setValue(t, e), this.dispatchEvent("formfieldchange", { field: { name: t }, value: e });
+  }
+  async saveFormValues(t = !1) {
+    var i;
+    if (!this.currentDoc) return null;
+    const e = this.formRenderer.getAllValues();
+    try {
+      const o = await fetch(`/api/documents/${this.currentDoc.id}/forms/fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values: e, save_as_new: t })
+      });
+      if (!o.ok) {
+        const n = await o.json();
+        return alert(`Erreur d'enregistrement du formulaire: ${n.error || o.statusText}`), null;
+      }
+      const a = await o.json();
+      this.dispatchEvent("formsaved", a);
+      for (const n of this.cachedPageBlobs.values()) URL.revokeObjectURL(n);
+      return this.cachedPageBlobs.clear(), (i = this.renderWorker) == null || i.postMessage({ type: "CLEAR_CACHE" }), document.querySelectorAll('.page-container[data-rendered="true"]').forEach((n) => {
+        const s = parseInt(n.dataset.pageNumber || "1", 10), c = n.querySelector(".page-image");
+        c && (c.src = `/api/documents/${a.document_id}/pages/${s}/render?dpi=120&t=${Date.now()}`);
+      }), alert(`✅ Formulaire enregistré (${a.updated_fields_count} champs mis à jour).`), a;
+    } catch (o) {
+      return console.error("Error saving form values:", o), alert("Erreur réseau lors de la sauvegarde du formulaire."), null;
+    }
+  }
+  // =========================================================================
+  // Multimedia & Video Player
+  // =========================================================================
+  renderVideoPlayer(t) {
+    this.pagesContainer.innerHTML = "", this.pagesContainer.style.display = "flex", this.pagesContainer.style.alignItems = "center", this.pagesContainer.style.justifyContent = "center", this.pagesContainer.style.width = "100%", this.pagesContainer.style.height = "100%", this.pagesContainer.style.backgroundColor = "#000000";
+    const e = document.createElement("div");
+    e.className = "video-viewer-wrapper", e.innerHTML = `
+      <div class="video-container" id="videoContainer">
+        <video
+          id="oxidVideoPlayer"
+          class="oxid-video-element"
+          src="/api/documents/${t.id}/video"
+          poster="/api/documents/${t.id}/pages/1/render?dpi=120"
+          preload="metadata"
+          playsinline
+        ></video>
+        <div class="video-controls-overlay" id="videoControlsOverlay">
+          <button class="video-big-play-btn" id="videoBigPlayBtn" title="Lecture (Espace)">
+            <svg viewBox="0 0 24 24" width="36" height="36"><polygon points="6 3 20 12 6 21 6 3" fill="white"/></svg>
+          </button>
+          <div class="video-control-bar" id="videoControlBar">
+            <button class="video-btn" id="videoPlayPauseBtn" title="Lecture / Pause (Espace)">
+              <svg id="vIconPlay" viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+              <svg id="vIconPause" viewBox="0 0 24 24" width="20" height="20" style="display:none;"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>
+            </button>
+            <span class="video-time" id="videoTimeDisplay">00:00 / 00:00</span>
+            <div class="video-timeline-container" id="videoTimeline">
+              <div class="video-timeline-bg">
+                <div class="video-timeline-buffered" id="videoBufferedBar"></div>
+                <div class="video-timeline-progress" id="videoProgressBar"></div>
+              </div>
+              <input type="range" class="video-seek-slider" id="videoSeekSlider" min="0" max="100" value="0" step="0.1">
+            </div>
+            <button class="video-btn" id="videoMuteBtn" title="Muet (M)">
+              <svg id="vIconVol" viewBox="0 0 24 24" width="20" height="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+              <svg id="vIconMuted" viewBox="0 0 24 24" width="20" height="20" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="2"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+            <input type="range" class="video-volume-slider" id="videoVolumeSlider" min="0" max="1" step="0.05" value="1" title="Volume">
+            <select class="video-speed-select" id="videoSpeedSelect" title="Vitesse de lecture">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+            </select>
+            <button class="video-btn" id="videoLoopBtn" title="Lecture en boucle">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" fill="currentColor"/></svg>
+            </button>
+            <button class="video-btn" id="videoPipBtn" title="Incrustation (Picture-in-Picture)">
+              <svg viewBox="0 0 24 24" width="18" height="18"><rect x="2" y="4" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor"/></svg>
+            </button>
+            <button class="video-btn" id="videoFullscreenBtn" title="Plein écran (F)">
+              <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `, this.pagesContainer.appendChild(e);
+    const i = e.querySelector("#oxidVideoPlayer"), o = e.querySelector("#videoBigPlayBtn"), a = e.querySelector("#videoPlayPauseBtn"), n = e.querySelector("#vIconPlay"), s = e.querySelector("#vIconPause"), c = e.querySelector("#videoTimeDisplay"), r = e.querySelector("#videoProgressBar"), d = e.querySelector("#videoBufferedBar"), l = e.querySelector("#videoSeekSlider"), p = e.querySelector("#videoMuteBtn"), m = e.querySelector("#vIconVol"), f = e.querySelector("#vIconMuted"), u = e.querySelector("#videoVolumeSlider"), b = e.querySelector("#videoSpeedSelect"), w = e.querySelector("#videoLoopBtn"), k = e.querySelector("#videoPipBtn"), M = e.querySelector("#videoFullscreenBtn"), D = e.querySelector("#videoContainer"), L = (x) => {
+      const F = Math.floor(x / 60), N = Math.floor(x % 60);
+      return `${F.toString().padStart(2, "0")}:${N.toString().padStart(2, "0")}`;
+    }, E = () => {
+      i.paused ? (n.style.display = "block", s.style.display = "none", o.style.display = "flex") : (n.style.display = "none", s.style.display = "block", o.style.display = "none");
+    }, $ = () => {
+      i.paused ? i.play() : i.pause();
+    };
+    a == null || a.addEventListener("click", $), o == null || o.addEventListener("click", $), i == null || i.addEventListener("click", $), i == null || i.addEventListener("play", E), i == null || i.addEventListener("pause", E), i == null || i.addEventListener("timeupdate", () => {
+      if (!isNaN(i.duration) && i.duration > 0) {
+        const x = i.currentTime / i.duration * 100;
+        r.style.width = `${x}%`, l.value = x.toString(), c.textContent = `${L(i.currentTime)} / ${L(i.duration)}`;
+      } else
+        c.textContent = `${L(i.currentTime)} / 00:00`;
+    }), i == null || i.addEventListener("progress", () => {
+      if (i.buffered.length > 0 && !isNaN(i.duration) && i.duration > 0) {
+        const x = i.buffered.end(i.buffered.length - 1);
+        d.style.width = `${x / i.duration * 100}%`;
+      }
+    }), l == null || l.addEventListener("input", () => {
+      if (!isNaN(i.duration) && i.duration > 0) {
+        const x = parseFloat(l.value) / 100 * i.duration;
+        i.currentTime = x;
+      }
+    });
+    const P = () => {
+      i.muted || i.volume === 0 ? (m.style.display = "none", f.style.display = "block") : (m.style.display = "block", f.style.display = "none"), u.value = i.muted ? "0" : i.volume.toString();
+    };
+    p == null || p.addEventListener("click", () => {
+      i.muted = !i.muted, P();
+    }), u == null || u.addEventListener("input", () => {
+      i.volume = parseFloat(u.value), i.muted = i.volume === 0, P();
+    }), b == null || b.addEventListener("change", () => {
+      i.playbackRate = parseFloat(b.value);
+    }), w == null || w.addEventListener("click", () => {
+      i.loop = !i.loop, w.style.color = i.loop ? "#10b981" : "#e2e8f0";
+    }), k == null || k.addEventListener("click", async () => {
+      try {
+        document.pictureInPictureElement ? await document.exitPictureInPicture() : document.pictureInPictureEnabled && await i.requestPictureInPicture();
+      } catch (x) {
+        console.warn("PiP not available:", x);
+      }
+    });
+    const T = () => {
+      document.fullscreenElement ? document.exitFullscreen().catch((x) => console.warn(x)) : D.requestFullscreen().catch((x) => console.warn(x));
+    };
+    M == null || M.addEventListener("click", T), i == null || i.addEventListener("dblclick", T);
+    const B = () => {
+      const x = !!document.fullscreenElement;
+      M.title = x ? "Quitter le plein écran (F)" : "Plein écran (F)", M.innerHTML = x ? '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z" fill="currentColor"/></svg>' : '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg>';
+    };
+    document.addEventListener("fullscreenchange", B);
+    let R = null;
+    const S = e.querySelector("#videoControlsOverlay"), q = () => {
+      S && (S.style.opacity = "1"), D.style.cursor = "default", clearTimeout(R), i.paused || (R = setTimeout(() => {
+        !i.paused && S && (S.style.opacity = "0", D.style.cursor = "none");
+      }, 2500));
+    };
+    D.addEventListener("mousemove", q), D.addEventListener("click", q), i.addEventListener("play", q), i.addEventListener("pause", () => {
+      clearTimeout(R), S && (S.style.opacity = "1"), D.style.cursor = "default";
+    });
+    const O = (x) => {
+      document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName) || (x.key === " " || x.code === "Space" ? (x.preventDefault(), $()) : x.key === "f" || x.key === "F" ? (x.preventDefault(), T()) : x.key === "m" || x.key === "M" ? (x.preventDefault(), i.muted = !i.muted, P()) : x.key === "ArrowRight" ? (x.preventDefault(), i.currentTime = Math.min(i.duration || 0, i.currentTime + 5)) : x.key === "ArrowLeft" ? (x.preventDefault(), i.currentTime = Math.max(0, i.currentTime - 5)) : x.key === "ArrowUp" ? (x.preventDefault(), i.volume = Math.min(1, i.volume + 0.1), i.muted = !1, P()) : x.key === "ArrowDown" && (x.preventDefault(), i.volume = Math.max(0, i.volume - 0.1), P()));
+    };
+    window.addEventListener("keydown", O);
+  }
+}
+if (typeof window < "u") {
+  const A = () => {
+    document.querySelector("oxid-viewer") || window.oxidViewer || (window.oxidViewer = new We());
+  };
+  document.readyState === "loading" ? window.addEventListener("DOMContentLoaded", A) : A();
+}
+const Ke = `
+  <div class="oxid-viewer-root">
+    <!-- Unified Single-Line Top Bar -->
+    <header class="toolbar toolbar-unified">
+      <!-- Left Group: Logo, Sidebar Toggle, Doc Title, Page Navigation, Zoom, Rotate, Layout -->
+      <div class="tool-group">
+        <span class="logo-badge">Oxid</span>
+        <button class="btn btn-icon-only" id="btnToggleSidebar" title="Afficher/masquer panneau latéral (Ctrl+B)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
+
+        <div class="divider"></div>
+
+        <span class="doc-title" id="docTitle" title="Nom du document">Aucun document chargé</span>
+
+        <div class="divider"></div>
+
+        <!-- Page Nav -->
+        <button class="btn btn-icon-only" id="btnPrevPage" title="Page précédente (Flèche Gauche ou Haut)">◀</button>
+        <input type="number" class="page-input" id="pageNumberInput" value="1" min="1">
+        <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">/ <span id="pageCountLabel">1</span></span>
+        <button class="btn btn-icon-only" id="btnNextPage" title="Page suivante (Flèche Droite ou Bas)">▶</button>
+
+        <div class="divider"></div>
+
+        <!-- Zoom -->
+        <button class="btn btn-icon-only" id="btnZoomOut" title="Zoom arrière">−</button>
+        <span id="zoomLevelLabel" style="font-size: 12px; min-width: 38px; text-align: center;">100%</span>
+        <button class="btn btn-icon-only" id="btnZoomIn" title="Zoom avant">+</button>
+        <button class="btn" id="btnFitWidth" title="Ajuster à la largeur">Largeur</button>
+        <button class="btn" id="btnFitPage" title="Ajuster à la page">Page</button>
+
+        <div class="divider"></div>
+
+        <!-- Rotate Group with Sub-menu -->
+        <div class="rotate-group" id="rotateGroup" style="position: relative; display: flex; align-items: center; gap: 2px;">
+          <button class="btn btn-icon-only" id="btnRotateCcw" title="Rotation 90° gauche (Tout le document)">↺</button>
+          <button class="btn btn-icon-only" id="btnRotateCw" title="Rotation 90° droite (Tout le document)">↻</button>
+          <button class="btn btn-icon-only" id="btnRotateMenu" type="button" title="Options de rotation (Tout le document / Page active)" style="padding: 0 4px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events: none;"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <!-- Rotate Sub-Menu -->
+          <div class="toolbar-dropdown-menu" id="rotateMenu" style="display: none;">
+            <div class="dropdown-header">Portée par défaut</div>
+            <button class="dropdown-item active" id="menuOptRotateAll" type="button">
+              <span class="dropdown-check" id="checkRotateAll">✓</span>
+              <span class="dropdown-label">Tout le document</span>
+              <span class="dropdown-badge">Défaut</span>
+            </button>
+            <button class="dropdown-item" id="menuOptRotateCurrent" type="button">
+              <span class="dropdown-check" id="checkRotateCurrent">&nbsp;</span>
+              <span class="dropdown-label" id="rotateCurrentPageLabel">Page active (P. 1)</span>
+            </button>
+
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-header">Action rapide page active</div>
+            <button class="dropdown-item action-item" id="menuActionRotatePageCw" type="button">
+              <span class="dropdown-icon">↻</span>
+              <span class="dropdown-label" id="actionRotateCwLabel">Tourner page 1 (90° droite)</span>
+            </button>
+            <button class="dropdown-item action-item" id="menuActionRotatePageCcw" type="button">
+              <span class="dropdown-icon">↺</span>
+              <span class="dropdown-label" id="actionRotateCcwLabel">Tourner page 1 (90° gauche)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Layout & Fullscreen -->
+        <button class="btn btn-icon-only active" id="btnLayoutSingle" title="Mode page unique">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnLayoutDouble" title="Mode double page (Livre)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="9" height="16" rx="1"/><rect x="13" y="4" width="9" height="16" rx="1"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnLayoutGrid" title="Mode grille (Planche contact)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+
+        <div class="divider"></div>
+
+        <!-- Scroll Modes: Continu vs Page par page -->
+        <button class="btn btn-icon-only active" id="btnScrollContinuous" title="Défilement continu (glisser de page en page)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7l-5-5-5 5M17 17l-5 5-5-5"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnScrollPage" title="Page par page (afficher uniquement la page/planche en cours)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="12" r="1.5"/></svg>
+        </button>
+
+        <div class="divider"></div>
+
+        <button class="btn btn-icon-only" id="btnToggleFullscreen" title="Plein écran (F)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnToggleZenMode" title="Mode Zen (Masquer barres d'outils, réapparition au survol) (Z)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+
+      <!-- Right Group: Interactive Tools, Search/PII/Sign/Builder/Compare/Forms, and Document File Actions -->
+      <div class="tool-group">
+        <!-- Interactive Tools -->
+        <button class="btn active" id="toolSelect" title="Outil curseur / sélection">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7 18 3-7 7-3L3 3z"/></svg>
+          <span class="btn-text">Curseur</span>
+        </button>
+        <button class="btn" id="toolHighlight" title="Surligner le texte">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 2-7 7 3 3 7-7-3-3z"/></svg>
+          <span class="btn-text">Surligner</span>
+        </button>
+        <button class="btn" id="toolNote" title="Ajouter une note / commentaire">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="btn-text">Note</span>
+        </button>
+        <button class="btn" id="toolRedact" title="Biffure / Masquage permanent de données">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          <span class="btn-text">Biffer</span>
+        </button>
+        <button class="btn btn-danger" id="btnOpenBurnIn" title="Brûler et sécuriser définitivement les zones biffées" style="display: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+          <span class="btn-text">Appliquer</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <button class="btn btn-icon-only" id="btnToggleSearch" title="Rechercher dans le document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="btn" id="btnOpenPiiScan" title="Détecter automatiquement les données sensibles (RGPD, IBAN, CB, NIR)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="btn-text">RGPD</span>
+        </button>
+        <button class="btn" id="btnOpenSignModal" title="Signer ou apposer un tampon officiel certifié">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 19.5c0 .8-.7 1.5-1.5 1.5H5.5c-.8 0-1.5-.7-1.5-1.5V4.5C4 3.7 4.7 3 5.5 3H12l7 7v9.5z"/><path d="M12 3v7h7"/><path d="m8 15 2 2 4-4"/></svg>
+          <span class="btn-text">Signer</span>
+        </button>
+        <button class="btn btn-icon-only" id="btnOpenBuilder" title="Document Builder (Réorganiser / Fusionner / Filigrane)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnOpenCompare" title="Comparer deux versions d'un document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7.5 7.5"/><path d="M3 21l7.5-7.5"/></svg>
+        </button>
+        <button class="btn btn-form-save" id="btnSaveForms" title="Enregistrer les modifications du formulaire interactif" style="display: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span class="btn-text">Enregistrer</span>
+        </button>
+
+        <!-- DICOM Cine Loop Player (visible when multi-frame DICOM is active) -->
+        <div id="dicomCineGroup" style="display: none; align-items: center; gap: 4px; margin-right: 4px;">
+          <button class="btn btn-icon" id="btnDicomCinePlay" type="button" title="Lecture boucle cinématographique (Ciné-Run) [Espace]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" id="dicomCinePlayIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <span style="font-size: 11px; color: var(--text-muted); font-family: monospace; user-select: none;" id="dicomCineFps">15 fps</span>
+        </div>
+
+        <!-- DICOM Contrast / Windowing Controls (visible when DICOM file is active) -->
+        <div class="dropdown-container" id="dicomControlsGroup" style="position: relative; display: none; align-items: center;">
+          <button class="btn btn-icon-with-text" id="btnDicomPresets" type="button" title="Préréglages médicaux de contraste (Niveaux Hounsfield)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+            <span class="btn-text" id="dicomPresetLabel">Tissus mous</span>
+            <span class="dropdown-chevron">▾</span>
+          </button>
+          <div class="toolbar-dropdown-menu" id="menuDicomPresets" style="display: none; min-width: 275px;">
+            <div class="dropdown-header">Fenêtrage Médical (HU)</div>
+            <button class="dropdown-item active" data-preset="soft_tissue" type="button">
+              <span class="dropdown-check">✓</span>
+              <span class="dropdown-label">🫀 Tissus mous</span>
+              <span class="dropdown-badge">40 / 400</span>
+            </button>
+            <button class="dropdown-item" data-preset="lung" type="button">
+              <span class="dropdown-check">&nbsp;</span>
+              <span class="dropdown-label">🫁 Poumons</span>
+              <span class="dropdown-badge">-600 / 1500</span>
+            </button>
+            <button class="dropdown-item" data-preset="bone" type="button">
+              <span class="dropdown-check">&nbsp;</span>
+              <span class="dropdown-label">🦴 Os / Squelette</span>
+              <span class="dropdown-badge">400 / 1800</span>
+            </button>
+            <button class="dropdown-item" data-preset="brain" type="button">
+              <span class="dropdown-check">&nbsp;</span>
+              <span class="dropdown-label">🧠 Cerveau / AVC</span>
+              <span class="dropdown-badge">40 / 80</span>
+            </button>
+            <button class="dropdown-item" data-preset="mediastinum" type="button">
+              <span class="dropdown-check">&nbsp;</span>
+              <span class="dropdown-label">🫁 Médiastin</span>
+              <span class="dropdown-badge">50 / 350</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Document File Actions -->
+        <input type="file" id="fileUploadInput" style="display: none" accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.bmp,.gif,.svg,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.odg,.vsd,.vsdx,.eml,.msg,.txt,.csv,.tsv,.json,.xml,.md,.dxf,.dwg,.dcm,.dicom">
+        <button class="btn btn-primary" id="btnUploadDoc" title="Ouvrir un document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span class="btn-text">Ouvrir</span>
+        </button>
+        <button class="btn btn-icon-only" id="btnDownloadDoc" title="Télécharger le document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="btn btn-icon-only" id="btnPrintDoc" title="Imprimer le document (Ctrl+P)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Activity Bar (VSCode Style) -->
+      <nav class="activity-bar" id="activityBar" aria-label="Volet d'activités">
+        <div class="activity-bar-top">
+          <button class="activity-item sidebar-tab active" data-tab="thumbnails" title="Vignettes (Ctrl+1)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="bookmarks" title="Plan et signets">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="annotations" title="Annotations et commentaires">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v4"/><path d="M10 9h4"/></svg>
+            <span class="activity-badge" id="annotationsBadge" style="display: none;">0</span>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="cad-layers" id="cadLayersTab" style="display: none;" title="Calques CAO / DAO (Layers)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span class="activity-badge" id="cadLayersBadge" style="display: none;">0</span>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="dicom" id="dicomTab" style="display: none;" title="Imagerie Médicale DICOM & Fenêtrage (HU)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <span class="activity-badge" id="dicomBadge" style="display: none;">CT</span>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="forms" id="formsTab" style="display: none;" title="Champs de formulaire interactifs">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+            <span class="activity-badge" id="formsBadge" style="display: none;">0</span>
+          </button>
+          <button class="activity-item sidebar-tab" data-tab="attachments" id="attachmentsTab" style="display: none;" title="Pièces jointes">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <span class="activity-badge" id="attachmentsBadge" style="display: none;">0</span>
+          </button>
+        </div>
+        <div class="activity-bar-bottom">
+          <button class="activity-item sidebar-tab" data-tab="info" id="infoTab" title="Propriétés et métadonnées du document">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Sidebar Panel (Collapsible) -->
+      <aside class="sidebar sidebar-panel" id="appSidebar">
+        <div class="sidebar-panel-header">
+          <span class="sidebar-panel-title" id="sidebarPanelTitle">VIGNETTES</span>
+          <button class="sidebar-panel-close" id="btnCloseSidebar" title="Masquer le volet latéral (Ctrl+B)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="sidebar-content" id="sidebarContent">
+          <!-- Dynamically populated -->
+        </div>
+      </aside>
+
+      <!-- Document Viewport -->
+      <main class="viewport" id="documentViewport">
+        <div class="empty-state" id="emptyState">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <p>Glissez un document PDF/Image ou cliquez sur "Ouvrir document"</p>
+        </div>
+        <div id="pagesContainer" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+          <!-- Pages loaded here -->
+        </div>
+
+        <!-- Book Mode Magazine Navigation Flips -->
+        <button class="book-nav-btn book-nav-prev" id="btnBookPrevSpread" title="Page précédente (Flèche gauche)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="book-nav-btn book-nav-next" id="btnBookNextSpread" title="Page suivante (Flèche droite)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </main>
+
+      <!-- Search Overlay -->
+      <div class="search-overlay" id="searchOverlay" style="display: none;">
+        <input type="text" class="search-input" id="searchInput" placeholder="Rechercher...">
+        <span id="searchCount" style="font-size: 12px; color: var(--text-muted);">0/0</span>
+        <button class="btn" id="btnSearchPrev">▲</button>
+        <button class="btn" id="btnSearchNext">▼</button>
+        <button class="btn" id="btnCloseSearch">✕</button>
+      </div>
+    </div>
+
+    <!-- Document Builder Modal -->
+    <div class="modal-backdrop" id="builderModal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Document Builder (Assemblage & Filigranes)</h3>
+          <button class="btn" id="btnCloseBuilder">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Faites pivoter ou supprimez des pages, puis appliquez un filigrane au vol :
+          </p>
+          <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+            <label style="font-size: 13px;">Filigrane :</label>
+            <input type="text" id="builderWatermarkText" class="search-input" placeholder="Ex: CONFIDENTIEL" style="flex: 1;">
+          </div>
+          <div class="builder-grid" id="builderGrid">
+            <!-- Page cards -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="btnCancelBuilder">Annuler</button>
+          <button class="btn btn-primary" id="btnApplyBuilder">Générer le document</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div class="modal-backdrop" id="compareModal" style="display: none;">
+      <div class="modal-card" style="max-width: 980px; width: 95%;">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 class="modal-title">Comparateur Visuel Différentiel Multi-pages</h3>
+            <span style="font-size: 11px; background: rgba(59, 130, 246, 0.2); color: var(--accent); padding: 2px 8px; border-radius: 12px; font-weight: 500;">Multi-pages</span>
+          </div>
+          <button class="btn" id="btnCloseCompare">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+            <input type="file" id="compareFileInput" accept=".pdf,.png,.jpg,.jpeg,.docx,.tiff,.txt">
+            <button class="btn btn-primary" id="btnRunCompare">Comparer avec le document actif</button>
+            <span id="compareStats" style="font-size: 13px; font-weight: 600;"></span>
+          </div>
+
+          <!-- Comparison Navigation Toolbar (Page per page + scan all) -->
+          <div id="compareNavToolbar" style="display: none; margin-bottom: 12px; align-items: center; justify-content: space-between; background: var(--bg-primary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button class="btn" id="btnComparePrevPage" title="Page précédente">◀ Précédente</button>
+              <span style="font-size: 12px; font-weight: 500;">Page <strong id="compareCurrentPageLabel">1</strong> / <strong id="compareTotalPagesLabel">1</strong></span>
+              <button class="btn" id="btnCompareNextPage" title="Page suivante">Suivante ▶</button>
+            </div>
+
+            <!-- Mode Toggle: Visual Diff vs Semantic Text Diff -->
+            <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+              <button class="btn active" id="btnModeVisualDiff" style="font-size: 11px; padding: 4px 8px;">🖼️ Diff Visuel</button>
+              <button class="btn" id="btnModeTextDiff" style="font-size: 11px; padding: 4px 8px;">📝 Diff Sémantique (Texte)</button>
+            </div>
+
+            <!-- Quick Page Chips -->
+            <div id="comparePageChips" style="display: flex; gap: 6px; align-items: center; overflow-x: auto; max-width: 450px; padding: 2px 0;">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button class="btn" id="btnCompareAllPages" title="Calculer le différentiel de toutes les pages">⚡ Scanner tout</button>
+              <button class="btn" id="btnToggleContinuousDiff" title="Afficher toutes les pages en défilement continu">Vue continue</button>
+            </div>
+          </div>
+
+          <div id="compareResultContainer" style="text-align: center; max-height: 520px; overflow: auto; background: #262626; padding: 14px; border-radius: 6px; border: 2px dashed transparent; transition: border-color 0.2s;">
+            <p style="color: #bbb; font-size: 13px;">Sélectionnez ou <strong>glissez-déposez ici</strong> un second document pour calculer le différentiel visuel (Vert = Ajouté, Rouge = Supprimé).</p>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-muted);">
+            <span>🟩 <strong>Vert</strong> : Ajouté dans le nouveau document</span>
+            <span>🟥 <strong>Rouge</strong> : Supprimé de l'ancien document</span>
+            <span>⬜ <strong>Gris</strong> : Contenu identique inchangé</span>
+          </div>
+          <button class="btn" id="btnCancelCompare">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Redaction Confirm Modal -->
+    <div class="modal-backdrop" id="redactModal" style="display: none;">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Appliquer la Biffure Permanente</h3>
+          <button class="btn" id="btnCloseRedact">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Les zones sélectionnées seront <strong>physiquement supprimées</strong> du PDF pour garantir la conformité réglementaire (RGPD).
+          </p>
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 600;">Motif légal de biffure :</label>
+            <select id="redactReasonSelect" class="search-input" style="width: 100%; margin-top: 6px;">
+              <option value="RGPD / Données Personnelles">RGPD / Données Personnelles</option>
+              <option value="Secret Médical">Secret Médical</option>
+              <option value="Secret des Affaires / Confidentiel">Secret des Affaires / Confidentiel</option>
+              <option value="Sécurité">Sécurité</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="btnCancelRedact">Annuler</button>
+          <button class="btn btn-danger" id="btnConfirmRedact">Biffer définitivement</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PII / RGPD Scan Assistant Modal -->
+    <div class="modal-backdrop" id="piiModal" style="display: none;">
+      <div class="modal-card" style="max-width: 680px;">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h3 class="modal-title">Assistant de Détection & Masquage RGPD / PII</h3>
+          </div>
+          <button class="btn" id="btnClosePiiModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Oxid analyse les flux textuels et coordonnées géométriques du document pour détecter les données personnelles et bancaires (IBAN SEPA, Cartes Bancaires, Sécurité Sociale NIR, E-mails).
+          </p>
+          <div id="piiScanLoading" style="text-align: center; padding: 24px 0; display: none;">
+            <div style="font-size: 14px; font-weight: 500;">Analyse heuristique & vérification des clés (Luhn, Modulo 97)...</div>
+          </div>
+          <div id="piiScanEmpty" style="text-align: center; padding: 20px 0; color: var(--text-muted); display: none;">
+            ✅ Aucune donnée sensible ou non-conforme détectée dans ce document.
+          </div>
+          <div id="piiScanResults" style="max-height: 320px; overflow-y: auto; display: none;">
+            <!-- List of items with checkboxes -->
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <span id="piiSummaryCount" style="font-size: 13px; font-weight: 500; color: var(--text-muted);"></span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" id="btnCancelPiiModal">Fermer</button>
+            <button class="btn btn-danger" id="btnApplyPiiRedactions" disabled>Biffer la sélection (1-clic)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Digital Signature & Visual Stamp Modal -->
+    <div class="modal-backdrop" id="signatureModal" style="display: none;">
+      <div class="modal-card" style="max-width: 620px;">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);"><path d="M20 19.5c0 .8-.7 1.5-1.5 1.5H5.5c-.8 0-1.5-.7-1.5-1.5V4.5C4 3.7 4.7 3 5.5 3H12l7 7v9.5z"/><path d="M12 3v7h7"/><path d="m8 15 2 2 4-4"/></svg>
+            <h3 class="modal-title">Signature Électronique & Tampon Officiel</h3>
+          </div>
+          <button class="btn" id="btnCloseSignModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="sig-tabs" style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+            <button class="btn active" id="tabSigStamp" style="flex: 1;">🏛️ Tampon Certifié</button>
+            <button class="btn" id="tabSigHandwritten" style="flex: 1;">✍️ Signature Manuscrite</button>
+          </div>
+
+          <!-- Tab Content 1: Official Certified Stamp -->
+          <div id="sigStampContent">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Nom du Signataire *</label>
+                <input type="text" id="sigSignerName" class="input-ctrl" style="width: 100%;" placeholder="ex: Jean Dupont" value="Jean Dupont" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Motif de Signature</label>
+                <input type="text" id="sigReason" class="input-ctrl" style="width: 100%;" placeholder="ex: Approbation légale" value="Approbation légale" />
+              </div>
+            </div>
+            <div style="margin-bottom: 14px;">
+              <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Lieu d'émission</label>
+              <input type="text" id="sigLocation" class="input-ctrl" style="width: 100%;" placeholder="ex: Paris, FR" value="Paris, FR" />
+            </div>
+          </div>
+
+          <!-- Tab Content 2: Handwritten Drawing -->
+          <div id="sigHandwrittenContent" style="display: none; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Tracez votre signature à la souris ou au stylet :</label>
+              <button class="btn" id="btnClearCanvas" style="font-size: 11px; padding: 2px 8px;">Effacer</button>
+            </div>
+            <canvas id="signatureCanvas" width="560" height="140" style="background: #ffffff; border-radius: 6px; border: 1px solid #475569; width: 100%; height: 140px; cursor: crosshair; touch-action: none;"></canvas>
+          </div>
+
+          <!-- Position & Page Target -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
+            <div>
+              <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Emplacement du tampon</label>
+              <select id="sigPositionPreset" class="input-ctrl" style="width: 100%; padding: 6px;">
+                <option value="bottom-right">Bas Droit (Standard)</option>
+                <option value="bottom-left">Bas Gauche</option>
+                <option value="center">Centre de la page</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Page cible</label>
+              <input type="number" id="sigPageNumber" class="input-ctrl" style="width: 100%;" min="1" value="1" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button class="btn" id="btnCancelSignModal">Annuler</button>
+          <button class="btn btn-primary" id="btnApplySignature">Certifier et Signer le document</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Loading Progress Overlay -->
+    <div class="loading-overlay" id="docLoadingOverlay" style="display: none;">
+      <div class="loading-box">
+        <div class="spinner-ring"></div>
+        <h4 id="loadingOverlayTitle">Chargement du document...</h4>
+        <p id="loadingOverlaySub">Conversion et optimisation haute fidélité</p>
+      </div>
+    </div>
+
+    <!-- Drag & Drop Global Overlay -->
+    <div class="drag-drop-overlay" id="dragDropOverlay" style="display: none;">
+      <div class="drag-drop-box">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <h3>Déposez votre document ici</h3>
+        <p>PDF, Images, Word, Excel, PowerPoint, Emails, Textes...</p>
+      </div>
+    </div>
+  </div>
+`, Qe = ':root{--bg-primary: #0f172a;--bg-secondary: #1e293b;--bg-tertiary: #334155;--text-main: #f8fafc;--text-muted: #94a3b8;--accent: #3b82f6;--accent-hover: #2563eb;--danger: #ef4444;--warning: #f59e0b;--success: #10b981;--border: #334155;--paper-bg: #525659}*{box-sizing:border-box;margin:0;padding:0}body,.oxid-viewer-root{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background-color:var(--bg-primary);color:var(--text-main);overflow:hidden;height:100vh;display:flex;flex-direction:column;position:relative}.toolbar,.toolbar-unified,.app-header{height:46px;min-height:46px;background-color:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 10px;gap:6px;-webkit-user-select:none;user-select:none;overflow:visible!important;z-index:50;position:relative}.toolbar-unified::-webkit-scrollbar,.toolbar::-webkit-scrollbar{display:none}.logo-area{display:flex;align-items:center;gap:8px}.logo-badge{background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-weight:800;padding:3px 8px;border-radius:5px;font-size:12px;letter-spacing:.5px;flex-shrink:0}.doc-title{font-weight:600;font-size:12px;color:#e2e8f0;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center}.tool-group{display:flex;align-items:center;gap:3px;flex-shrink:0}.divider{width:1px;height:20px;background-color:var(--border);margin:0 4px;flex-shrink:0}.btn{background:transparent;border:1px solid transparent;color:var(--text-muted);padding:5px 8px;border-radius:5px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s ease;white-space:nowrap;flex-shrink:0}.btn:hover{background-color:var(--bg-tertiary);color:var(--text-main)}.btn.active{background-color:var(--accent);color:#fff}.btn-text{font-size:12px}@media (max-width: 1400px){.btn-text{display:none}}.btn-primary{background-color:var(--accent);color:#fff}.btn-primary:hover{background-color:var(--accent-hover)}.btn-danger{background-color:var(--danger);color:#fff}.btn-danger:hover{background-color:#dc2626}.page-input{width:44px;background:var(--bg-primary);border:1px solid var(--border);color:var(--text-main);text-align:center;padding:4px;border-radius:4px;font-size:13px}.btn-icon-only{padding:6px;display:flex;align-items:center;justify-content:center}.toolbar-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:230px;background-color:#1e293b;border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 25px -5px #00000080,0 4px 10px -2px #0000004d;padding:6px 0;z-index:100;-webkit-user-select:none;user-select:none;animation:dropdownFadeIn .15s ease-out}@keyframes dropdownFadeIn{0%{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}.dropdown-header{padding:6px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}.dropdown-divider{height:1px;background-color:var(--border);margin:5px 0}.dropdown-item{width:100%;padding:7px 12px;display:flex;align-items:center;gap:8px;background:transparent;border:none;color:#e2e8f0;font-size:12px;text-align:left;cursor:pointer;transition:background-color .12s ease,color .12s ease;font-family:inherit}.dropdown-item:hover{background-color:#ffffff14;color:#fff}.dropdown-item.active{color:var(--accent);font-weight:600}.dropdown-check{width:16px;font-size:13px;font-weight:700;color:var(--accent);display:inline-flex;align-items:center;justify-content:center}.dropdown-icon{width:16px;font-size:14px;color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center}.dropdown-label{flex:1;white-space:nowrap}.dropdown-badge{font-size:9px;font-weight:700;text-transform:uppercase;background-color:#38bdf826;color:var(--accent);padding:2px 6px;border-radius:4px;letter-spacing:.04em}.main-container{display:flex;flex:1;overflow:hidden;position:relative}.activity-bar{width:50px;flex:0 0 50px;background-color:#0b1120;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:8px 0;z-index:10;-webkit-user-select:none;user-select:none}.activity-bar-top,.activity-bar-bottom{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}.activity-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:6px;color:#94a3b8;cursor:pointer;transition:color .15s ease,background-color .15s ease;padding:0}.activity-item:hover{color:#f1f5f9;background-color:#ffffff12}.activity-item.active{color:#fff;background-color:#ffffff1a}.activity-item.active:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;background-color:var(--accent);border-radius:0 2px 2px 0}.activity-badge{position:absolute;top:3px;right:3px;background:var(--accent);color:#0f172a;font-size:10px;font-weight:700;border-radius:10px;padding:0 4px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;box-shadow:0 1px 3px #0006}.sidebar,.sidebar-panel{width:280px;flex:0 0 280px;background-color:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s cubic-bezier(.4,0,.2,1),flex-basis .2s ease,opacity .15s ease;overflow:hidden;z-index:9}.sidebar.collapsed,.sidebar-panel.collapsed{width:0!important;flex:0 0 0!important;border-right:none;opacity:0;pointer-events:none}.sidebar-panel-header{height:40px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background-color:#0000002e;flex-shrink:0}.sidebar-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sidebar-panel-close{background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease,color .15s ease}.sidebar-panel-close:hover{background-color:#ffffff1a;color:var(--text)}.sidebar-tabs{display:none}.sidebar-content{flex:1;overflow-y:auto;padding:12px}.thumb-item{margin-bottom:14px;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative}.thumb-rotate-btn{position:absolute;top:4px;right:18px;background:#0f172ad1;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.2);color:#f1f5f9;border-radius:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;opacity:0;cursor:pointer;transition:opacity .15s ease,background-color .15s ease,transform .15s ease;z-index:5;padding:0}.thumb-item:hover .thumb-rotate-btn{opacity:1}.thumb-rotate-btn:hover{background:var(--accent);color:#0f172a;transform:scale(1.1)}.thumb-preview{max-width:140px;max-height:180px;background-color:#fff;box-shadow:0 4px 6px -1px #0000004d;border-radius:4px;overflow:hidden;border:2px solid transparent;display:flex;align-items:center;justify-content:center;position:relative;container-type:size;transition:border-color .15s ease,transform .15s ease,width .2s ease,height .2s ease}.thumb-item.active .thumb-preview{border-color:var(--accent)}.thumb-preview img{width:100%;height:100%;object-fit:contain;display:block;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(var(--thumb-rot, 0deg));transform-origin:center center;transition:transform .25s cubic-bezier(.4,0,.2,1)}.thumb-preview.rotated-sideways img{width:100cqh;height:100cqw}.thumb-label{font-size:11px;color:var(--text-muted);margin-top:4px}.thumb-virtual-container{position:relative;width:100%}.thumb-item.virtualized{position:absolute;left:0;right:0;margin-bottom:0;display:flex;flex-direction:column;align-items:center}.viewport{flex:1;background-color:var(--paper-bg);overflow:auto;display:flex;flex-direction:column;align-items:center;padding:30px 20px;gap:24px;position:relative;transition:background-color .2s ease}.viewport.layout-single #pagesContainer{display:flex!important;flex-direction:column!important;align-items:center!important;gap:24px!important;width:100%!important}.viewport.layout-double #pagesContainer{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;justify-content:center!important;align-items:center!important;gap:0!important;row-gap:32px!important;width:auto!important;max-width:100%!important}.viewport.layout-double .page-container{margin:0!important;border-radius:0!important;box-shadow:none!important}.viewport.layout-double .page-container:nth-child(odd){border-top-left-radius:4px!important;border-bottom-left-radius:4px!important;border-right:1px solid rgba(0,0,0,.15)!important;box-shadow:-8px 8px 24px -4px #00000073,inset -12px 0 16px -8px #00000038!important}.viewport.layout-double .page-container:nth-child(2n){border-top-right-radius:4px!important;border-bottom-right-radius:4px!important;border-left:1px solid rgba(0,0,0,.15)!important;box-shadow:8px 8px 24px -4px #00000073,inset 12px 0 16px -8px #00000038!important;margin-right:0!important}.viewport.layout-double .page-container:nth-child(odd):last-child{border-top-right-radius:4px!important;border-bottom-right-radius:4px!important;border-right:none!important;box-shadow:0 10px 25px -5px #00000073!important}.viewport.scroll-page{overflow:auto;justify-content:center;align-items:center}.viewport.scroll-page #pagesContainer{margin:auto!important;justify-content:center!important;align-items:center!important}.viewport.scroll-page.layout-single #pagesContainer{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important}.viewport.scroll-page.layout-double #pagesContainer{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:center!important;gap:0!important}.viewport.scroll-page:not(.layout-grid) .page-container.page-hidden{display:none!important}.viewport.scroll-page.layout-double .page-container.book-page-left{border-radius:4px 0 0 4px!important;border-right:1px solid rgba(0,0,0,.15)!important;border-left:none!important;box-shadow:-8px 8px 24px -4px #00000073,inset -12px 0 16px -8px #00000038!important}.viewport.scroll-page.layout-double .page-container.book-page-right{border-radius:0 4px 4px 0!important;border-left:1px solid rgba(0,0,0,.15)!important;border-right:none!important;box-shadow:8px 8px 24px -4px #00000073,inset 12px 0 16px -8px #00000038!important}.viewport.scroll-page.layout-double .page-container.book-page-single{border-radius:4px!important;border:none!important;box-shadow:0 10px 25px -5px #00000073!important}.book-nav-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:#0f172abf;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:50;transition:all .2s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 24px #0006}.viewport.scroll-page:not(.layout-grid) .book-nav-btn{display:flex}.book-nav-btn:hover{background:var(--accent);border-color:var(--accent);transform:translateY(-50%) scale(1.12);box-shadow:0 12px 28px #0ea5e973}.book-nav-btn:active{transform:translateY(-50%) scale(.95)}.book-nav-prev{left:24px}.book-nav-next{right:24px}.book-nav-btn:disabled{opacity:.2;pointer-events:none}.oxid-viewer-root:fullscreen .viewport.layout-double{padding:0;display:flex;align-items:center;justify-content:center;background-color:#1e1e1e!important}.oxid-viewer-root:fullscreen .viewport.layout-double #pagesContainer{margin:auto}.viewport.layout-grid #pagesContainer{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;grid-auto-rows:260px!important;gap:24px!important;row-gap:52px!important;width:100%!important;max-width:1400px;padding:24px 16px 56px;justify-items:center;align-items:center}.viewport.layout-grid .page-container{width:var(--grid-w, 240px)!important;height:var(--grid-h, 160px)!important;max-width:240px!important;max-height:240px!important;aspect-ratio:var(--page-aspect, auto)!important;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;border:2px solid transparent;align-self:center}.viewport.layout-grid .page-container:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 16px 32px #0000008c;border-color:var(--accent);z-index:10}.viewport.layout-grid .page-container:after{content:"Page " attr(data-page-number);position:absolute;bottom:-28px;left:50%;transform:translate(-50%);background:#0f172ae0;color:#f8fafc;font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;pointer-events:none;white-space:nowrap;box-shadow:0 2px 6px #00000059}.oxid-viewer-root:fullscreen{width:100vw!important;height:100vh!important;border-radius:0!important}.oxid-viewer-root:fullscreen .viewport{padding:20px 10px}.page-container{background:#fff;box-shadow:0 10px 25px -5px #0006;position:relative;display:flex;justify-content:center;align-items:center;user-select:text;-webkit-user-select:text;border-radius:2px;container-type:size;overflow:visible;transition:width .2s cubic-bezier(.4,0,.2,1),height .2s cubic-bezier(.4,0,.2,1)}.page-content{position:absolute;top:50%;left:50%;width:100%;height:100%;transform:translate(-50%,-50%) rotate(var(--page-rot, 0deg));transform-origin:center center;transition:transform .25s cubic-bezier(.4,0,.2,1);overflow:hidden;background:#fff;border-radius:inherit;display:flex;justify-content:center;align-items:center}.page-container.rotated-sideways .page-content{width:100cqh;height:100cqw}.page-image{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-select:none}.text-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto;overflow:hidden;user-select:text;-webkit-user-select:text;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}.text-layer span{position:absolute;color:transparent;cursor:text;white-space:pre;user-select:text;-webkit-user-select:text;line-height:1;box-sizing:border-box}.text-layer span::selection{background:#3b82f673;color:transparent}.text-layer span.highlight-search{background:#facc1599;border-radius:2px}.annotation-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5}.annot-highlight{position:absolute;background-color:#fef08a73;mix-blend-mode:multiply;cursor:pointer;pointer-events:auto;border-radius:2px;transition:background-color .15s ease}.annot-highlight:hover{background-color:#facc15a6}.annot-redaction{position:absolute;background-color:#000;color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;letter-spacing:.5px;cursor:pointer;pointer-events:auto;border:1px dashed #ef4444;box-sizing:border-box}.annot-redaction:hover{border-color:#fff}.annot-note-pin{position:absolute;width:26px;height:26px;background-color:#f59e0b;border:2px solid white;border-radius:50%;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 3px 8px #00000059;transition:transform .15s ease,background-color .15s ease;z-index:10}.annot-note-pin:hover{transform:scale(1.15);background-color:#d97706}.annot-preview-highlight{position:absolute;background-color:#facc1559;border:1px dashed #eab308;pointer-events:none;z-index:20}.annot-preview-redact{position:absolute;background-color:#0009;border:1px dashed #ef4444;pointer-events:none;z-index:20}.annot-popover-card{position:absolute;width:250px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:0 10px 25px #0006;z-index:50;display:flex;flex-direction:column;gap:8px;pointer-events:auto}.annot-popover-header{display:flex;align-items:center;justify-content:space-between}.annot-popover-title{font-size:12px;font-weight:600;color:var(--text-main)}.annot-popover-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px}.annot-popover-close:hover{color:var(--text-main)}.annot-popover-meta{font-size:10px;color:var(--text-muted)}.annot-popover-body{font-size:12px;color:var(--text-main);background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto}.annot-popover-input{width:100%;box-sizing:border-box;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;color:var(--text-main);padding:6px 8px;font-size:12px;font-family:inherit;resize:vertical}.annot-popover-input:focus{outline:none;border-color:var(--accent)}.annot-popover-actions{display:flex;justify-content:flex-end;gap:6px}.annot-btn-cancel,.annot-btn-delete{background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-main);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer}.annot-btn-delete:hover{background:#ef4444;color:#fff;border-color:#dc2626}.annot-btn-save,.annot-btn-edit{background:var(--accent);border:none;color:#fff;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer}.annot-btn-save:hover,.annot-btn-edit:hover{opacity:.9}.annot-delete-pill{position:absolute;background:#1f2937;color:#f87171;border:1px solid #374151;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px #00000080;z-index:40;pointer-events:auto;transition:background .15s ease,transform .1s ease}.annot-delete-pill:hover{background:#ef4444;color:#fff;transform:scale(1.05)}.selection-floating-toolbar{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:4px;display:flex;align-items:center;gap:4px;box-shadow:0 8px 20px #0006;z-index:2000;animation:fadeIn .15s ease-out}.selection-floating-toolbar button{background:transparent;border:none;color:#f1f5f9;font-size:11px;font-weight:500;padding:5px 9px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:background .15s ease}.selection-floating-toolbar button:hover{background:#334155}.modal-backdrop{position:fixed;top:0;left:0;right:0;bottom:0;background-color:#000000a6;display:flex;align-items:center;justify-content:center;z-index:1000;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}.modal-card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;width:90%;max-width:680px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px #00000080}.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}.modal-title{font-size:16px;font-weight:600}.modal-body{padding:20px;overflow-y:auto;flex:1}.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}.builder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;margin-top:14px;max-height:480px;overflow-y:auto;padding:4px}.builder-item{background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;position:relative;transition:all .2s ease;box-shadow:0 1px 3px #0003}.builder-item-deleted{opacity:.6;border-style:dashed;border-color:#ef4444;background:#ef44440d}.builder-thumb{background:#fff;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #0000004d;border:1px solid rgba(0,0,0,.1)}.builder-thumb img{object-fit:contain;display:block}.builder-deleted-overlay{position:absolute;top:0;right:0;bottom:0;left:0;background:#000000a6;display:flex;align-items:center;justify-content:center;color:#fca5a5;font-size:12px;font-weight:700;border-radius:4px;z-index:2;-webkit-backdrop-filter:blur(1px);backdrop-filter:blur(1px)}.builder-label-row{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:8px;padding:0 2px}.builder-page-label{font-size:12px;font-weight:600;color:var(--text-main)}.builder-rot-badge{font-size:10px;color:var(--accent);background:#3b82f626;padding:1px 6px;border-radius:10px;font-weight:500}.builder-actions{display:flex;gap:6px;width:100%;margin-top:8px}.builder-btn{flex:1;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-main);border-radius:4px;padding:5px 6px;font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s ease}.builder-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}.builder-btn-danger:hover{background:#ef4444;color:#fff;border-color:#dc2626}.builder-btn-restore{background:#10b981;color:#fff;border-color:#059669}.builder-btn-restore:hover{background:#059669}.search-overlay{position:absolute;top:16px;right:24px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 15px -3px #0006;z-index:100}.search-input{background:var(--bg-primary);border:1px solid var(--border);color:var(--text-main);padding:6px 10px;border-radius:4px;font-size:13px;outline:none}.highlight-search{background-color:#fef08a66!important;outline:1px solid #facc15}.highlight-active{background-color:#f9731699!important;outline:2px solid #ea580c!important}.pii-item-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;background:var(--bg-primary);border:1px solid var(--border);margin-bottom:8px;font-size:13px;transition:border-color .15s}.pii-item-row:hover{border-color:var(--accent)}.pii-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase}.pii-badge-iban{background:#1e3a8a;color:#93c5fd}.pii-badge-credit_card{background:#831843;color:#fbcfe8}.pii-badge-social_security{background:#701a75;color:#f5d0fe}.pii-badge-email{background:#064e3b;color:#6ee7b7}.pii-badge-phone{background:#713f12;color:#fde047}.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:16px}.drag-drop-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:#0f172ad9;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;pointer-events:none;animation:fadeInOverlay .15s ease-out}.drag-drop-box{background:var(--bg-secondary);border:2px dashed var(--accent);border-radius:16px;padding:40px 60px;display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--text-main);box-shadow:0 20px 40px #00000080;transform:scale(1.02);pointer-events:none}.drag-drop-box svg{color:var(--accent);animation:bounceDrop 1s infinite alternate ease-in-out}.drag-drop-box h3{font-size:18px;font-weight:600;margin:0}.drag-drop-box p{font-size:13px;color:var(--text-muted);margin:0}@keyframes fadeInOverlay{0%{opacity:0}to{opacity:1}}@keyframes bounceDrop{0%{transform:translateY(-4px)}to{transform:translateY(4px)}}.loading-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:#0f172ae0;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);z-index:9998;display:flex;align-items:center;justify-content:center;animation:fadeInOverlay .15s ease-out}.loading-box{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:14px;padding:32px 48px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 16px 40px #0009;text-align:center;max-width:420px}.spinner-ring{width:42px;height:42px;border:3px solid rgba(14,165,233,.2);border-top-color:var(--accent);border-radius:50%;animation:spinRing .8s linear infinite}@keyframes spinRing{to{transform:rotate(360deg)}}.loading-box h4{font-size:16px;font-weight:600;color:var(--text-main);margin:0}.loading-box p{font-size:13px;color:var(--text-muted);margin:0}.form-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:25}.acroform-field-container{pointer-events:auto;box-sizing:border-box}.acroform-field{width:100%;height:100%;box-sizing:border-box;background:#0ea5e924;border:1px solid rgba(14,165,233,.45);border-radius:2px;color:#0f172a;font-family:inherit;transition:all .15s ease-in-out;outline:none;padding:0 4px}.acroform-field:hover{background:#0ea5e938;border-color:#0ea5e9}.acroform-field:focus{background:#fff;border:2px solid #0284c7;box-shadow:0 0 0 3px #0ea5e959}.acroform-textarea{resize:none;padding:4px}.acroform-input-checkbox,.acroform-input-radio{cursor:pointer;accent-color:#0284c7;margin:0;width:100%;height:100%}.acroform-select{cursor:pointer;background-color:#0ea5e924}.acroform-signature-badge{background:#10b98126;border:1.5px dashed #10b981;color:#047857;cursor:pointer;-webkit-user-select:none;user-select:none;border-radius:4px}.acroform-signature-badge:hover{background:#10b98147;border-color:#059669}.btn-form-save{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff!important;font-weight:500;border-radius:6px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;border:none;cursor:pointer;transition:opacity .15s,transform .1s}.btn-form-save:hover{opacity:.92;transform:translateY(-1px)}.oxid-viewer-root.zen-mode .toolbar-unified{position:absolute;top:0;left:0;right:0;transform:translateY(-100%);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .25s ease;z-index:100;box-shadow:0 10px 25px -5px #0009}.oxid-viewer-root.zen-mode .toolbar-unified:after{content:"";position:absolute;top:100%;left:0;right:0;height:28px;pointer-events:auto;background:transparent}.oxid-viewer-root.zen-mode .toolbar-unified:hover{transform:translateY(0);opacity:1;pointer-events:auto}.oxid-viewer-root.zen-mode .activity-bar{position:absolute;top:0;bottom:0;left:0;transform:translate(-100%);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .25s ease;z-index:90;box-shadow:5px 0 25px -5px #0009}.oxid-viewer-root.zen-mode .activity-bar:after{content:"";position:absolute;top:0;bottom:0;left:100%;width:28px;pointer-events:auto;background:transparent}.oxid-viewer-root.zen-mode .activity-bar:hover{transform:translate(0);opacity:1;pointer-events:auto}.oxid-viewer-root.zen-mode .sidebar-panel{position:absolute;top:0;bottom:0;left:50px;z-index:89;box-shadow:10px 0 30px -5px #0009;transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .25s ease}.oxid-viewer-root.zen-mode:not(:has(.activity-bar:hover)):not(:has(.sidebar-panel:hover)) .sidebar-panel:not(.collapsed){transform:translate(-150%);opacity:0;pointer-events:none}.oxid-viewer-root.zen-mode:has(.activity-bar:hover) .sidebar-panel:not(.collapsed),.oxid-viewer-root.zen-mode:has(.sidebar-panel:hover) .sidebar-panel:not(.collapsed){transform:translate(0);opacity:1;pointer-events:auto}.oxid-viewer-root.zen-mode .main-container,.oxid-viewer-root.zen-mode .viewport{width:100%;height:100%}#btnToggleZenMode.active{background-color:var(--accent)!important;color:#fff!important}.cad-panel{display:flex;flex-direction:column;gap:12px;font-size:12px}.cad-panel-toolbar{display:flex;gap:6px;align-items:center}.cad-search-input{flex:1;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-size:11px;color:var(--text);outline:none}.cad-search-input:focus{border-color:var(--accent)}.cad-btn-action{background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}.cad-btn-action:hover{background:var(--accent);color:#fff;border-color:var(--accent)}.cad-layers-list{display:flex;flex-direction:column;gap:4px;max-height:calc(100vh - 220px);overflow-y:auto}.cad-layer-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;background:var(--bg-primary);border:1px solid var(--border);cursor:pointer;-webkit-user-select:none;user-select:none;transition:background-color .15s,border-color .15s}.cad-layer-item:hover{background:#0ea5e914;border-color:#0ea5e966}.cad-layer-item.disabled{opacity:.45;background:var(--bg-secondary)}.cad-layer-checkbox{cursor:pointer;accent-color:var(--accent);width:14px;height:14px;margin:0}.cad-layer-color{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0}.cad-layer-name{flex:1;font-weight:500;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}.cad-layer-count{font-size:10px;background:var(--bg-secondary);color:var(--text-muted);padding:1px 5px;border-radius:10px;border:1px solid var(--border)}.dicom-panel{display:flex;flex-direction:column;gap:14px;font-size:12px}.dicom-section{background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px}.dicom-section-title{font-weight:700;font-size:10.5px;color:#10b981;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);padding-bottom:4px;display:flex;justify-content:space-between;align-items:center}.dicom-meta-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}.dicom-meta-label{color:var(--text-muted)}.dicom-meta-value{font-weight:600;color:var(--text);font-family:monospace}.dicom-presets-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.dicom-preset-btn{background:var(--bg-secondary);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px 8px;font-size:11px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;transition:all .15s}.dicom-preset-btn:hover{background:#10b98126;border-color:#10b981;color:#10b981}.dicom-preset-btn.active{background:#10b981;border-color:#10b981;color:#fff}.dicom-preset-sub{font-size:9px;opacity:.75;font-family:monospace}.dicom-control-group{display:flex;flex-direction:column;gap:6px}.dicom-slider-header{display:flex;justify-content:space-between;align-items:center;font-size:11px}.dicom-slider{width:100%;accent-color:#10b981;cursor:pointer;height:4px}.dicom-hu-display{background:#10b9811a;border:1px solid rgba(16,185,129,.3);border-radius:4px;padding:6px 10px;text-align:center;font-family:monospace;font-size:11.5px;font-weight:600;color:#10b981}.pacs-overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:20;padding:12px;font-family:Courier New,Courier,monospace;font-size:11px;font-weight:600;color:#0f6;text-shadow:1px 1px 2px rgba(0,0,0,.9),0 0 4px rgba(0,0,0,.8);display:flex;flex-direction:column;justify-content:space-between}.pacs-overlay-top{display:flex;justify-content:space-between;align-items:flex-start}.pacs-overlay-bottom{display:flex;justify-content:space-between;align-items:flex-end}.pacs-corner{display:flex;flex-direction:column;gap:2px}.pacs-corner-right{text-align:right;align-items:flex-end}.oxid-viewer-root.dicom-mode,.oxid-viewer-root.dicom-mode .viewport,.oxid-viewer-root.dicom-mode .page-container,.oxid-viewer-root.dicom-mode .page-content,.viewport.dicom-mode .page-container,.viewport.dicom-mode .page-content{background:#000!important}.oxid-viewer-root.dicom-mode .page-container,.viewport.dicom-mode .page-container{box-shadow:0 10px 30px #000000f2!important}.oxid-viewer-root.dicom-mode .page-placeholder,.viewport.dicom-mode .page-placeholder{color:#374151!important;background:#000!important}.btn-cine-playing{color:#10b981!important;background:#10b98126!important;border-color:#10b981!important}.video-viewer-wrapper{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:480px;padding:24px;box-sizing:border-box}.video-container{position:relative;display:flex;flex-direction:column;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 16px 40px #000000b3;max-width:100%;max-height:85vh}.oxid-video-element{width:100%;max-height:75vh;object-fit:contain;background:#000;display:block}.video-container:fullscreen,.video-container:-webkit-full-screen{width:100vw!important;height:100vh!important;max-width:100vw!important;max-height:100vh!important;border-radius:0!important;box-shadow:none!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#000!important}.video-container:fullscreen .oxid-video-element,.video-container:-webkit-full-screen .oxid-video-element{width:100vw!important;height:100vh!important;max-width:100vw!important;max-height:100vh!important;object-fit:contain!important}.video-container:fullscreen .video-controls-overlay,.video-container:-webkit-full-screen .video-controls-overlay{position:absolute!important;top:0!important;right:0!important;bottom:0!important;left:0!important;width:100%!important;height:100%!important}.video-container:fullscreen .video-control-bar,.video-container:-webkit-full-screen .video-control-bar{padding:16px 24px!important;gap:16px!important}.video-controls-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;transition:opacity .25s ease}.video-big-play-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:68px;height:68px;border-radius:50%;background:#000000a6;border:2px solid rgba(255,255,255,.8);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;transition:transform .15s ease,background .2s ease;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}.video-big-play-btn:hover{transform:translate(-50%,-50%) scale(1.1);background:#0284c7d9;border-color:#38bdf8}.video-control-bar{position:absolute;bottom:0;left:0;right:0;padding:10px 16px;background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,.6) 70%,transparent 100%);display:flex;align-items:center;gap:12px;color:#fff;pointer-events:auto;-webkit-user-select:none;user-select:none}.video-btn{background:transparent;border:none;color:#e2e8f0;cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:color .15s ease,transform .1s ease}.video-btn:hover{color:#38bdf8;transform:scale(1.08)}.video-time{font-size:11.5px;font-family:monospace;color:#94a3b8;white-space:nowrap}.video-timeline-container{position:relative;flex:1;height:18px;display:flex;align-items:center;cursor:pointer}.video-timeline-bg{position:absolute;left:0;right:0;height:4px;background:#fff3;border-radius:2px;overflow:hidden;transition:height .15s ease}.video-timeline-container:hover .video-timeline-bg{height:6px}.video-timeline-buffered{position:absolute;top:0;bottom:0;left:0;width:0%;background:#ffffff59;border-radius:2px}.video-timeline-progress{position:absolute;top:0;bottom:0;left:0;width:0%;background:#0284c7;border-radius:2px}.video-seek-slider{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0}.video-volume-slider{width:70px;height:4px;accent-color:#0284c7;cursor:pointer}.video-speed-select{background:#1e293bcc;border:1px solid rgba(255,255,255,.2);color:#f1f5f9;border-radius:4px;font-size:11px;padding:2px 4px;cursor:pointer;outline:none}.video-speed-select:hover{border-color:#38bdf8}.video-badge-thumb{position:absolute;bottom:6px;right:6px;background:#ef4444e6;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;text-transform:uppercase}';
+class Ve extends HTMLElement {
+  constructor() {
+    super(...arguments);
+    g(this, "viewer", null);
+    g(this, "container", null);
+    g(this, "pendingPermissions", null);
+    g(this, "pendingWatermark", null);
+  }
+  static get observedAttributes() {
+    return [
+      "doc-id",
+      "src",
+      "connector",
+      "token",
+      "theme",
+      "watermark",
+      "permissions",
+      "read-only",
+      "disable-download",
+      "disable-print",
+      "disable-redaction",
+      "disable-annotation",
+      "disable-sign",
+      "disable-build",
+      "disable-upload",
+      "disable-rotate",
+      "disable-view-mode",
+      "disable-scroll-mode",
+      "disable-zen-mode",
+      "disable-search"
+    ];
+  }
+  connectedCallback() {
+    if (this.viewer) return;
+    this.innerHTML = `
+      <style>
+        oxid-viewer, .oxid-viewer-root {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          position: relative;
+          background-color: var(--bg-primary, #0f172a);
+          color: var(--text-main, #f8fafc);
+        }
+        ${Qe}
+      </style>
+      ${Ke}
+    `, this.container = this.querySelector(".oxid-viewer-root"), this.viewer = new We(this.container), window.oxidViewer = this.viewer, this.setupEventForwarding();
+    const e = this.getAttribute("doc-id"), i = this.getAttribute("src"), o = this.getAttribute("connector"), a = this.getAttribute("token"), n = this.pendingWatermark ?? this.getAttribute("watermark");
+    n && this.viewer.setWatermark(n), this.updatePermissionsFromAttributes(), this.pendingPermissions && this.viewer.setPermissions(this.pendingPermissions), i ? this.viewer.loadFromUrl(i) : o && e ? this.viewer.loadRemote(o, e, a || void 0) : e && this.viewer.loadDocumentById(e);
+  }
+  attributeChangedCallback(e, i, o) {
+    i === o || !this.viewer || (e === "watermark" ? this.viewer.setWatermark(o || "") : e === "permissions" || e.startsWith("disable-") || e === "read-only" ? this.updatePermissionsFromAttributes() : e === "doc-id" && o ? this.viewer.loadDocumentById(o) : e === "src" && o && this.viewer.loadFromUrl(o));
+  }
+  setupEventForwarding() {
+    [
+      "documentloaded",
+      "pagechanged",
+      "toolchanged",
+      "annotationsaved",
+      "burninapplied",
+      "uploadstart",
+      "uploaderror",
+      "filedropped",
+      "formloaded",
+      "formfieldchange",
+      "formsaved",
+      "permissionschanged",
+      "viewmodechanged",
+      "scrollmodechanged",
+      "pagerotated",
+      "zenmodechanged"
+    ].forEach((i) => {
+      var o;
+      (o = this.container) == null || o.addEventListener(i, (a) => {
+        this.dispatchEvent(new CustomEvent(i, {
+          bubbles: !0,
+          composed: !0,
+          detail: a.detail
+        }));
+      });
+    });
+  }
+  updatePermissionsFromAttributes() {
+    if (!this.viewer) return;
+    const e = this.getAttribute("permissions");
+    let i = {};
+    if (e)
+      try {
+        i = JSON.parse(e);
+      } catch {
+        console.warn("Invalid JSON in permissions attribute", e);
+      }
+    this.hasAttribute("disable-download") && (i.canDownload = !1), this.hasAttribute("disable-print") && (i.canPrint = !1), this.hasAttribute("disable-redaction") && (i.canRedact = !1), this.hasAttribute("disable-annotation") && (i.canAnnotate = !1), this.hasAttribute("disable-sign") && (i.canSign = !1), this.hasAttribute("disable-build") && (i.canBuild = !1), this.hasAttribute("disable-upload") && (i.canUpload = !1), this.hasAttribute("disable-rotate") && (i.canRotate = !1), this.hasAttribute("disable-view-mode") && (i.canChangeViewMode = !1), this.hasAttribute("disable-scroll-mode") && (i.canChangeScrollMode = !1), this.hasAttribute("disable-zen-mode") && (i.canZenMode = !1), this.hasAttribute("disable-search") && (i.canSearch = !1), this.hasAttribute("read-only") && (i.readOnly = !0), this.viewer.setPermissions(i);
+  }
+  setWatermark(e) {
+    var i;
+    this.pendingWatermark = e, (i = this.viewer) == null || i.setWatermark(e);
+  }
+  setPermissions(e) {
+    var i;
+    this.pendingPermissions = e, (i = this.viewer) == null || i.setPermissions(e);
+  }
+  print() {
+    var e;
+    (e = this.viewer) == null || e.print();
+  }
+  // --- Public API ---
+  uploadDocument(e) {
+    var i;
+    (i = this.viewer) == null || i.uploadDocument(e);
+  }
+  loadDocumentById(e) {
+    var i;
+    (i = this.viewer) == null || i.loadDocumentById(e);
+  }
+  loadFromUrl(e) {
+    var i;
+    (i = this.viewer) == null || i.loadFromUrl(e);
+  }
+  loadRemote(e, i, o) {
+    var a;
+    (a = this.viewer) == null || a.loadRemote(e, i, o);
+  }
+  goToPage(e) {
+    var i;
+    (i = this.viewer) == null || i.goToPage(e);
+  }
+  setZoom(e) {
+    var i;
+    (i = this.viewer) == null || i.setZoom(e);
+  }
+  fitWidth() {
+    var e;
+    (e = this.viewer) == null || e.fitWidth();
+  }
+  fitPage() {
+    var e;
+    (e = this.viewer) == null || e.fitPage();
+  }
+  rotate(e, i) {
+    var o;
+    (o = this.viewer) == null || o.rotate(e, i);
+  }
+  setTool(e) {
+    var i;
+    (i = this.viewer) == null || i.setTool(e);
+  }
+  runPiiScan() {
+    var e;
+    (e = this.viewer) == null || e.runPiiScan();
+  }
+  search(e) {
+    var i;
+    (i = this.viewer) == null || i.searchInDocument(e);
+  }
+  download() {
+    var e;
+    (e = this.viewer) == null || e.download();
+  }
+  openSignatureDialog() {
+    var e;
+    (e = this.viewer) == null || e.openSignatureDialog();
+  }
+  openDocumentBuilder() {
+    var e;
+    (e = this.viewer) == null || e.openDocumentBuilder();
+  }
+  openComparisonDialog() {
+    var e;
+    (e = this.viewer) == null || e.openComparisonDialog();
+  }
+  openRedactionDialog() {
+    var e;
+    (e = this.viewer) == null || e.openRedactionDialog();
+  }
+  toggleSidebar(e) {
+    var i;
+    (i = this.viewer) == null || i.toggleSidebar(e);
+  }
+  getMetadata() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getMetadata()) ?? null;
+  }
+  getAnnotations() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getAnnotations()) ?? [];
+  }
+  getFormFields() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getFormFields()) ?? [];
+  }
+  getFormValues() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getFormValues()) ?? {};
+  }
+  setFormFieldValue(e, i) {
+    var o;
+    (o = this.viewer) == null || o.setFormFieldValue(e, i);
+  }
+  setViewMode(e) {
+    var i;
+    (i = this.viewer) == null || i.setViewMode(e);
+  }
+  setScrollMode(e) {
+    var i;
+    (i = this.viewer) == null || i.setScrollMode(e);
+  }
+  nextSpread() {
+    var e;
+    (e = this.viewer) == null || e.nextSpread();
+  }
+  prevSpread() {
+    var e;
+    (e = this.viewer) == null || e.prevSpread();
+  }
+  toggleFullscreen() {
+    var e;
+    (e = this.viewer) == null || e.toggleFullscreen();
+  }
+  isFullscreen() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.isFullscreen()) ?? !1;
+  }
+  get viewMode() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.viewMode) ?? "single";
+  }
+  set viewMode(e) {
+    this.setViewMode(e);
+  }
+  get scrollMode() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.scrollMode) ?? "continuous";
+  }
+  set scrollMode(e) {
+    this.setScrollMode(e);
+  }
+  toggleZenMode() {
+    var e;
+    (e = this.viewer) == null || e.toggleZenMode();
+  }
+  setZenMode(e) {
+    var i;
+    (i = this.viewer) == null || i.setZenMode(e);
+  }
+  get zenMode() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.zenMode) ?? !1;
+  }
+  set zenMode(e) {
+    this.setZenMode(e);
+  }
+  saveFormValues(e = !1) {
+    var i;
+    return (i = this.viewer) == null ? void 0 : i.saveFormValues(e);
+  }
+  loadFormFields() {
+    var e;
+    return (e = this.viewer) == null ? void 0 : e.loadFormFields();
+  }
+  // CAD / DAO Plans
+  getCadLayers() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getCadLayers()) ?? [];
+  }
+  toggleCadLayer(e, i) {
+    var o;
+    (o = this.viewer) == null || o.toggleCadLayer(e, i);
+  }
+  setCadLayers(e) {
+    var i;
+    (i = this.viewer) == null || i.setCadLayers(e);
+  }
+  // DICOM Medical Imaging
+  getDicomMetadata() {
+    var e;
+    return ((e = this.viewer) == null ? void 0 : e.getDicomMetadata()) ?? null;
+  }
+  applyDicomPreset(e) {
+    var i;
+    (i = this.viewer) == null || i.applyDicomPreset(e);
+  }
+  setDicomWindow(e, i) {
+    var o;
+    (o = this.viewer) == null || o.setDicomWindow(e, i);
+  }
+  toggleDicomCine() {
+    var e;
+    (e = this.viewer) == null || e.toggleDicomCine();
+  }
+  stopDicomCine() {
+    var e;
+    (e = this.viewer) == null || e.stopDicomCine();
+  }
+}
+typeof window < "u" && !customElements.get("oxid-viewer") && customElements.define("oxid-viewer", Ve);
+typeof window < "u" && !customElements.get("oxid-viewer") && customElements.define("oxid-viewer", Ve);
+export {
+  We as OxidViewer,
+  Ve as OxidViewerElement
+};

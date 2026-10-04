@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oxid | Visionneuse de Documents Ultra-Légère</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    oxid-viewer {
+      width: 100%;
+      height: 100%;
+      display: flex;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-1tOc5vfZ.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CFIS1BnN.css">
+</head>
+<body>
+  <oxid-viewer id="viewer"></oxid-viewer>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const viewer = document.getElementById('viewer');
+      if (!viewer) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const docId = params.get('docId') || params.get('doc_id') || params.get('id');
+      const src = params.get('src') || params.get('file') || params.get('url');
+      const watermark = params.get('watermark');
+      const profile = params.get('rbac') || params.get('profile');
+
+      if (watermark) viewer.setAttribute('watermark', watermark);
+      if (profile) viewer.setAttribute('rbac-profile', profile);
+
+      if (docId) {
+        viewer.setAttribute('doc-id', docId);
+      } else if (src) {
+        viewer.setAttribute('src', src);
+      }
+    });
+  </script>
+</body>
+</html>
