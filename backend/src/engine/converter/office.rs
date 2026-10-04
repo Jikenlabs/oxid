@@ -114,13 +114,17 @@ impl OfficeConverter {
             }
         }
 
-        // Pure Rust native fallback parsers for DOCX, XLSX, ODG, VSDX, ODT
+        // Pure Rust native fallback parsers for DOCX, XLSX, ODG, VSDX, ODT, RTF
         if ext == "docx" {
             return Self::convert_docx_native(input_path, output_path);
         }
 
         if ext == "xlsx" {
             return Self::convert_xlsx_native(input_path, output_path);
+        }
+
+        if ext == "rtf" {
+            return Self::convert_rtf_native(input_path, output_path);
         }
 
         if ext == "odg" || ext == "vsdx" || ext == "odt" || ext == "ods" || ext == "odp" {
@@ -298,8 +302,13 @@ impl OfficeConverter {
     }
 
     fn convert_via_soffice(input_path: &Path, output_path: &Path) -> Result<()> {
+        // 1. Try Gotenberg HTTP REST API if GOTENBERG_URL or OXID_GOTENBERG_URL is configured
+        if let Ok(()) = Self::convert_via_gotenberg_http(input_path, output_path) {
+            return Ok(());
+        }
+
         let (runner_bin, runner_args) = Self::get_soffice_runner()
-            .context("No LibreOffice, soffice wrapper or Docker container available")?;
+            .context("No LibreOffice, Gotenberg HTTP endpoint, soffice wrapper or Docker container available")?;
 
         let abs_input = input_path
             .canonicalize()
@@ -975,6 +984,226 @@ impl OfficeConverter {
         doc.save(output_path)?;
         Ok(())
     }
+
+    /// Converts an office/text document via Gotenberg's HTTP REST API (/forms/libreoffice/convert)
+    pub fn convert_via_gotenberg_http(input_path: &Path, output_path: &Path) -> Result<()> {
+        let gotenberg_url = std::env::var("OXID_GOTENBERG_URL")
+            .or_else(|_| std::env::var("GOTENBERG_URL"))
+            .map(|u| u.trim_end_matches('/').to_string())
+            .unwrap_or_else(|_| "http://gotenberg:3000".to_string());
+
+        let file_bytes = fs::read(input_path)
+            .with_context(|| format!("Failed to read file for Gotenberg: {:?}", input_path))?;
+        let filename = input_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("document");
+
+        // Construct standard multipart/form-data payload for Gotenberg LibreOffice conversion
+        let boundary = format!("----OxidGotenbergBoundary{}", uuid::Uuid::new_v4().simple());
+        let mut body = Vec::new();
+
+        body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+        body.extend_from_slice(
+            format!(
+                "Content-Disposition: form-data; name=\"files\"; filename=\"{}\"\r\n",
+                filename
+            )
+            .as_bytes(),
+        );
+        body.extend_from_slice(b"Content-Type: application/octet-stream\r\n\r\n");
+        body.extend_from_slice(&file_bytes);
+        body.extend_from_slice(b"\r\n");
+        body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+        let endpoint = format!("{}/forms/libreoffice/convert", gotenberg_url);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .context("Failed to build HTTP client for Gotenberg")?;
+
+        let resp = client
+            .post(&endpoint)
+            .header(
+                "Content-Type",
+                format!("multipart/form-data; boundary={}", boundary),
+            )
+            .body(body)
+            .send()
+            .with_context(|| format!("Gotenberg request to {} failed", endpoint))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let err_body = resp.text().unwrap_or_default();
+            bail!("Gotenberg conversion error {}: {}", status, err_body);
+        }
+
+        let pdf_bytes = resp.bytes().context("Failed to read Gotenberg PDF response")?;
+        if pdf_bytes.is_empty() || !pdf_bytes.starts_with(b"%PDF") {
+            bail!("Gotenberg returned invalid or non-PDF payload");
+        }
+
+        fs::write(output_path, &pdf_bytes)
+            .with_context(|| format!("Failed to write converted PDF to {:?}", output_path))?;
+        info!("Successfully converted document via Gotenberg HTTP ({})", endpoint);
+        Ok(())
+    }
+
+    /// Pure Rust native fallback converter for RTF (Rich Text Format) documents
+    pub fn convert_rtf_native(input_path: &Path, output_path: &Path) -> Result<()> {
+        let raw_bytes = fs::read(input_path)
+            .with_context(|| format!("Failed to read RTF file: {:?}", input_path))?;
+        let text = Self::extract_rtf_text(&raw_bytes);
+
+        let mut lines = Vec::new();
+        lines.push("=== DOCUMENT RTF (RICH TEXT FORMAT) ===".to_string());
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                lines.push(trimmed.to_string());
+            }
+        }
+
+        if lines.len() <= 1 {
+            lines.push("Document RTF (aucun contenu textuel lisible extrait)".to_string());
+        }
+
+        Self::render_lines_to_pdf(&lines, output_path)
+    }
+
+    /// Extracts clean readable text from RTF content by stripping RTF control sequences and groups
+    pub fn extract_rtf_text(bytes: &[u8]) -> String {
+        let raw = String::from_utf8_lossy(bytes);
+        let mut result = String::with_capacity(raw.len());
+        let mut chars = raw.chars().peekable();
+        let mut group_depth: usize = 0;
+        let mut skip_group_depth = None;
+
+        while let Some(c) = chars.next() {
+            match c {
+                '{' => {
+                    group_depth += 1;
+                    if chars.peek() == Some(&'\\') {
+                        let mut lookahead = chars.clone();
+                        lookahead.next(); // skip '\'
+                        let mut word = String::new();
+                        while let Some(&ch) = lookahead.peek() {
+                            if ch.is_ascii_alphabetic() || ch == '*' {
+                                word.push(ch);
+                                lookahead.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        // Skip non-textual metadata/font/color groups
+                        if word == "fonttbl"
+                            || word == "colortbl"
+                            || word == "stylesheet"
+                            || word == "info"
+                            || word == "*\\themedata"
+                            || word == "*\\generator"
+                            || word.starts_with('*')
+                        {
+                            if skip_group_depth.is_none() {
+                                skip_group_depth = Some(group_depth);
+                            }
+                        }
+                    }
+                }
+                '}' => {
+                    if let Some(target) = skip_group_depth {
+                        if group_depth <= target {
+                            skip_group_depth = None;
+                        }
+                    }
+                    group_depth = group_depth.saturating_sub(1);
+                }
+                '\\' => {
+                    if let Some(&next) = chars.peek() {
+                        if next == '\\' || next == '{' || next == '}' {
+                            if skip_group_depth.is_none() {
+                                result.push(next);
+                            }
+                            chars.next();
+                            continue;
+                        }
+                        if next == '\'' {
+                            // Hex escaped character: \'hh
+                            chars.next(); // consume '\''
+                            let mut hex = String::new();
+                            for _ in 0..2 {
+                                if let Some(&h) = chars.peek() {
+                                    if h.is_ascii_hexdigit() {
+                                        hex.push(h);
+                                        chars.next();
+                                    }
+                                }
+                            }
+                            if let Ok(byte_val) = u8::from_str_radix(&hex, 16) {
+                                if skip_group_depth.is_none() {
+                                    // Treat Windows-1252 / Latin-1 common chars or fallback to ascii
+                                    if byte_val >= 32 {
+                                        result.push(byte_val as char);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+                        if next == '~' {
+                            if skip_group_depth.is_none() {
+                                result.push(' ');
+                            }
+                            chars.next();
+                            continue;
+                        }
+                    }
+
+                    // Read control word
+                    let mut word = String::new();
+                    while let Some(&ch) = chars.peek() {
+                        if ch.is_ascii_alphabetic() {
+                            word.push(ch);
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Optional numeric parameter
+                    while let Some(&ch) = chars.peek() {
+                        if ch.is_ascii_digit() || ch == '-' {
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Optional trailing space delimiter
+                    if chars.peek() == Some(&' ') {
+                        chars.next();
+                    }
+
+                    if skip_group_depth.is_none() {
+                        if word == "par" || word == "line" || word == "row" {
+                            result.push('\n');
+                        } else if word == "tab" {
+                            result.push('\t');
+                        }
+                    }
+                }
+                '\r' | '\n' => {
+                    // RTF ignores line breaks in source unless specified by \par
+                }
+                _ => {
+                    if skip_group_depth.is_none() {
+                        result.push(c);
+                    }
+                }
+            }
+        }
+
+        result
+    }
 }
 
 #[cfg(test)]
@@ -1045,6 +1274,28 @@ mod tests {
             assert!(res.is_ok(), "Conversion ODS to PDF failed: {:?}", res);
             assert!(out_ods_pdf.exists(), "Output ODS PDF not generated");
         }
+    }
+
+    #[test]
+    fn test_convert_rtf_native() {
+        let rtf_sample = br#"{\rtf1\ansi\deff0 {\fonttbl {\f0 Courier;}}\f0\fs20 Hello {\b World}!\par This is a native RTF conversion test.\par}"#;
+        let temp_rtf = Path::new("/tmp/test_native_sample.rtf");
+        let temp_pdf = Path::new("/tmp/test_native_sample.pdf");
+
+        fs::write(temp_rtf, rtf_sample).expect("write temp rtf");
+
+        let extracted = OfficeConverter::extract_rtf_text(rtf_sample);
+        assert!(extracted.contains("Hello"));
+        assert!(extracted.contains("World"));
+        assert!(extracted.contains("native RTF conversion test"));
+
+        let res = OfficeConverter::convert_rtf_native(temp_rtf, temp_pdf);
+        assert!(res.is_ok(), "RTF native conversion failed: {:?}", res);
+        assert!(temp_pdf.exists(), "PDF not generated");
+        assert!(fs::metadata(temp_pdf).unwrap().len() > 0);
+
+        let _ = fs::remove_file(temp_rtf);
+        let _ = fs::remove_file(temp_pdf);
     }
 }
 

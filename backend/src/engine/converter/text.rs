@@ -108,8 +108,6 @@ impl TextConverter {
     }
 
     fn convert_markdown_via_chromium(input_path: &Path, output_path: &Path) -> Result<()> {
-        use std::process::Command;
-
         let abs_input = input_path
             .canonicalize()
             .unwrap_or_else(|_| input_path.to_path_buf());
@@ -124,43 +122,62 @@ impl TextConverter {
         let abs_template = template_path.canonicalize().unwrap_or_else(|_| template_path.to_path_buf());
         let abs_mermaid = mermaid_js_path.canonicalize().unwrap_or_else(|_| mermaid_js_path.to_path_buf());
 
-        let parent_dir = abs_input.parent().unwrap_or_else(|| Path::new("."));
+        let gotenberg_url = std::env::var("OXID_GOTENBERG_URL")
+            .or_else(|_| std::env::var("GOTENBERG_URL"))
+            .map(|u| u.trim_end_matches('/').to_string())
+            .unwrap_or_else(|_| "http://gotenberg:3000".to_string());
 
-        let container_name = Command::new("docker")
-            .args(["ps", "--format", "{{.Names}}"])
-            .output()
-            .ok()
-            .and_then(|out| {
-                let s = String::from_utf8_lossy(&out.stdout);
-                s.lines()
-                    .map(|l| l.trim().to_string())
-                    .find(|l| l == "oxid-gotenberg" || l == "oxidrender-gotenberg")
-            })
-            .unwrap_or_else(|| "oxid-gotenberg".to_string());
+        let template_bytes = fs::read(&abs_template)?;
+        let input_bytes = fs::read(&abs_input)?;
+        let mermaid_bytes = fs::read(&abs_mermaid)?;
 
-        let output = Command::new("docker")
-            .args(&[
-                "exec",
-                "-w",
-                parent_dir.to_str().unwrap_or("."),
-                &container_name,
-                "curl",
-                "-s",
-                "http://localhost:3000/forms/chromium/convert/markdown",
-                "-F",
-                &format!("files=@{};filename=index.html", abs_template.to_string_lossy()),
-                "-F",
-                &format!("files=@{};filename=index.md", abs_input.to_string_lossy()),
-                "-F",
-                &format!("files=@{};filename=mermaid.min.js", abs_mermaid.to_string_lossy()),
-                "-F",
-                "waitForExpression=window.mermaidDone === true",
-            ])
-            .output()?;
+        let boundary = format!("----OxidGotenbergMdBoundary{}", uuid::Uuid::new_v4().simple());
+        let mut body = Vec::new();
 
-        if output.status.success() && output.stdout.starts_with(b"%PDF") {
-            fs::write(output_path, output.stdout)?;
-            return Ok(());
+        let add_file = |body: &mut Vec<u8>, field: &str, filename: &str, content: &[u8]| {
+            body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+            body.extend_from_slice(
+                format!(
+                    "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\nContent-Type: application/octet-stream\r\n\r\n",
+                    field, filename
+                )
+                .as_bytes(),
+            );
+            body.extend_from_slice(content);
+            body.extend_from_slice(b"\r\n");
+        };
+
+        add_file(&mut body, "files", "index.html", &template_bytes);
+        add_file(&mut body, "files", "index.md", &input_bytes);
+        add_file(&mut body, "files", "mermaid.min.js", &mermaid_bytes);
+
+        // Add waitForExpression field
+        body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+        body.extend_from_slice(
+            b"Content-Disposition: form-data; name=\"waitForExpression\"\r\n\r\nwindow.mermaidDone === true\r\n",
+        );
+        body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+        let endpoint = format!("{}/forms/chromium/convert/markdown", gotenberg_url);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()?;
+
+        let resp = client
+            .post(&endpoint)
+            .header(
+                "Content-Type",
+                format!("multipart/form-data; boundary={}", boundary),
+            )
+            .body(body)
+            .send()?;
+
+        if resp.status().is_success() {
+            let pdf = resp.bytes()?;
+            if pdf.starts_with(b"%PDF") {
+                fs::write(output_path, &pdf)?;
+                return Ok(());
+            }
         }
 
         anyhow::bail!("Gotenberg Chromium markdown conversion failed");

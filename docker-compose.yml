@@ -56,10 +56,10 @@ services:
       - OXID_PORT=8080
       - OXID_DATA_DIR=/data
       - OXID_OFFICE_ENGINE=gotenberg
+      - OXID_GOTENBERG_URL=http://gotenberg:3000
       - RUST_LOG=oxid=info,tower_http=info
     volumes:
       - oxid_data:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - gotenberg
     deploy:
@@ -85,10 +85,10 @@ services:
       - OXID_PORT=8080
       - OXID_DATA_DIR=/data
       - OXID_OFFICE_ENGINE=hybrid
+      - OXID_GOTENBERG_URL=http://gotenberg:3000
       - RUST_LOG=oxid=info,tower_http=info
     volumes:
       - oxid_data:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - gotenberg
     deploy:
