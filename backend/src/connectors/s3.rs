@@ -6,10 +6,8 @@ use std::env;
 
 pub struct S3Connector {
     endpoint: String,
-    #[allow(dead_code)]
-    access_key: Option<String>,
-    #[allow(dead_code)]
-    secret_key: Option<String>,
+    pub access_key: Option<String>,
+    pub secret_key: Option<String>,
     client: reqwest::Client,
 }
 

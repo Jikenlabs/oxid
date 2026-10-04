@@ -18,8 +18,7 @@ pub struct CacheStats {
 pub struct CacheManager {
     cache_dir: PathBuf,
     memory_cache: Arc<RwLock<HashMap<String, Vec<u8>>>>,
-    #[allow(dead_code)]
-    max_memory_bytes: usize,
+    pub max_memory_bytes: usize,
     pub stats: Arc<CacheStats>,
     pub redis_url: Option<String>,
 }
