@@ -6,7 +6,7 @@ pub mod office;
 pub mod text;
 
 use crate::models::EmailAttachment;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 use tracing::info;
 

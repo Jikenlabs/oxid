@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use lopdf::{Dictionary, Document, Object};
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::info;
 
 pub struct FormEngine;
 

@@ -349,7 +349,7 @@ impl OfficeConverter {
 
         let mut xml_content = String::new();
         {
-            let mut document_xml = archive
+            let document_xml = archive
                 .by_name("word/document.xml")
                 .context("word/document.xml not found inside docx")?;
             document_xml.take(30 * 1024 * 1024).read_to_string(&mut xml_content)?;
@@ -376,7 +376,7 @@ impl OfficeConverter {
         // Preload and convert all referenced images into PDF XObjects
         let mut loaded_images: HashMap<String, PreloadedImage> = HashMap::new();
         for (r_id, zip_path) in &rel_map {
-            if let Ok(mut img_file) = archive.by_name(zip_path) {
+            if let Ok(img_file) = archive.by_name(zip_path) {
                 let mut img_bytes = Vec::new();
                 if img_file.take(20 * 1024 * 1024).read_to_end(&mut img_bytes).is_ok() {
                     if let Ok(dyn_img) = image::load_from_memory(&img_bytes) {
@@ -784,7 +784,7 @@ impl OfficeConverter {
 
         // 1. Read shared strings if available
         let mut shared_strings = Vec::new();
-        if let Ok(mut ss_entry) = archive.by_name("xl/sharedStrings.xml") {
+        if let Ok(ss_entry) = archive.by_name("xl/sharedStrings.xml") {
             let mut ss_xml = String::new();
             let _ = ss_entry.take(30 * 1024 * 1024).read_to_string(&mut ss_xml);
             let mut reader = Reader::from_str(&ss_xml);
@@ -807,7 +807,7 @@ impl OfficeConverter {
 
         // 2. Read sheet1.xml
         let mut sheet_xml = String::new();
-        if let Ok(mut sheet_entry) = archive.by_name("xl/worksheets/sheet1.xml") {
+        if let Ok(sheet_entry) = archive.by_name("xl/worksheets/sheet1.xml") {
             let _ = sheet_entry.take(30 * 1024 * 1024).read_to_string(&mut sheet_xml);
         }
 
@@ -843,7 +843,7 @@ impl OfficeConverter {
         // For OpenDocument files, content is in content.xml
         let candidate_files = ["content.xml", "visio/pages/page1.xml", "visio/document.xml"];
         for candidate in candidate_files {
-            if let Ok(mut entry) = archive.by_name(candidate) {
+            if let Ok(entry) = archive.by_name(candidate) {
                 let mut xml_content = String::new();
                 if entry.take(30 * 1024 * 1024).read_to_string(&mut xml_content).is_ok() {
                     let mut reader = Reader::from_str(&xml_content);

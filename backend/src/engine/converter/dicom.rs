@@ -1,10 +1,10 @@
 use crate::models::{DicomMetadata, DicomPreset};
 use anyhow::{bail, Context, Result};
-use image::{GrayImage, Luma, Rgb, RgbImage};
+use image::{GrayImage, Luma};
 use lopdf::{dictionary, Document, Object, Stream};
 use std::fs;
 use std::io::Cursor;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::info;
 
 #[derive(Clone, Debug)]

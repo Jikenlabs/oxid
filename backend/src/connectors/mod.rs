@@ -3,12 +3,12 @@ pub mod filesystem;
 pub mod s3;
 pub mod traits;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use traits::{DocumentConnector, DocumentPayload, DocumentReference, SecurityContext};
+use traits::{DocumentConnector, DocumentReference, SecurityContext};
 use uuid::Uuid;
 
 #[derive(Clone)]

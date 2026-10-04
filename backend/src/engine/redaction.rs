@@ -1,7 +1,6 @@
 use crate::models::{RedactionItem, RedactionOrder};
-use anyhow::{bail, Result};
-use lopdf::Stream;
-use std::path::{Path, PathBuf};
+use anyhow::Result;
+use std::path::Path;
 use tracing::info;
 
 pub struct RedactionEngine;

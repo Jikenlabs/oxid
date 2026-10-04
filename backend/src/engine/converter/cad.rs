@@ -1,9 +1,9 @@
 use crate::models::{CadLayerInfo, CadMetadata};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use lopdf::{dictionary, Document, Object, Stream};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::info;
 
 #[derive(Clone, Debug)]

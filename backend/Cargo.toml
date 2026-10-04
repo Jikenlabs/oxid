@@ -10,9 +10,6 @@ description = "Ultra-lightweight, modular enterprise document viewer and renditi
 name = "oxid"
 path = "src/main.rs"
 
-[[bin]]
-name = "oxidrender"
-path = "src/main.rs"
 
 [dependencies]
 axum = { version = "0.7", features = ["multipart"] }

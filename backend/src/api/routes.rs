@@ -27,7 +27,7 @@ use axum::{
 use tracing::{error, info, warn};
 use serde::Deserialize;
 use std::collections::HashMap;
-use crate::auth::{ApiKeyManager, QuotaError, QuotaInfo};
+use crate::auth::{ApiKeyManager, QuotaError};
 use std::sync::Arc;
 
 #[derive(Clone)]

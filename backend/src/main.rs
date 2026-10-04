@@ -1,17 +1,8 @@
-mod api;
-mod auth;
-mod cache;
-mod config;
-mod connectors;
-mod engine;
-mod models;
-mod security;
-
-use api::routes::{create_router, AppState};
-use auth::ApiKeyManager;
-use cache::CacheManager;
-use config::AppConfig;
-use connectors::DocumentStorage;
+use oxid::api::routes::{create_router, AppState};
+use oxid::auth::ApiKeyManager;
+use oxid::cache::CacheManager;
+use oxid::config::AppConfig;
+use oxid::connectors::{self, DocumentStorage};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};

@@ -2,7 +2,6 @@ use crate::models::{Bookmark, DocumentMetadata, PageMetadata, PageText, TextSpan
 use anyhow::{bail, Context, Result};
 use std::path::Path;
 use std::process::Command;
-use tracing::{debug, warn};
 
 #[derive(Debug, Clone)]
 pub struct ImageBox {

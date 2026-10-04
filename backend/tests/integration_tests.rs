@@ -1,4 +1,4 @@
-use oxid::connectors::traits::{DocumentConnector, DocumentReference, SecurityContext};
+use oxid::connectors::traits::{DocumentReference, SecurityContext};
 use oxid::connectors::{ConnectorRegistry, DocumentStorage};
 use oxid::engine::annotations::AnnotationEngine;
 use oxid::engine::builder::DocumentBuilderEngine;
@@ -509,6 +509,7 @@ fn test_real_user_docx_conversion() {
         assert!(meta.page_count >= 5);
     }
 }
+#[test]
 fn test_pii_algorithms() {
     use oxid::engine::pii::PiiEngine;
 

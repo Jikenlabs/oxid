@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use lopdf::content::Content;
 use lopdf::{dictionary, Document, Object, Stream};
 use std::fs;
 use std::path::Path;

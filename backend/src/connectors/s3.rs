@@ -1,12 +1,14 @@
 use super::traits::{DocumentConnector, DocumentPayload, DocumentReference, SecurityContext};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::AUTHORIZATION;
 use std::env;
 
 pub struct S3Connector {
     endpoint: String,
+    #[allow(dead_code)]
     access_key: Option<String>,
+    #[allow(dead_code)]
     secret_key: Option<String>,
     client: reqwest::Client,
 }

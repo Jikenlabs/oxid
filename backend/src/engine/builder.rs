@@ -1,7 +1,7 @@
 use crate::models::{DocumentBuildOrder, PageAction, WatermarkOptions};
 use anyhow::{bail, Context, Result};
 use lopdf::content::Content;
-use lopdf::{Object, Stream};
+use lopdf::Object;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing::info;
@@ -231,12 +231,13 @@ fn get_or_create_resources(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lopdf::Stream;
 
     #[test]
     fn test_apply_watermark_in_memory() {
         let mut doc = lopdf::Document::with_version("1.5");
         let pages_id = doc.new_object_id();
-        let font_id = doc.new_object_id();
+        let _font_id = doc.new_object_id();
         let content_id = doc.new_object_id();
         let page_id = doc.new_object_id();
 
@@ -264,7 +265,7 @@ mod tests {
         doc.objects.insert(content_id, Object::Stream(Stream::new(lopdf::Dictionary::new(), content.encode().unwrap())));
 
         let wm = WatermarkOptions {
-            text: "CONFIDENTIEL - Jean DUPONT".to_string(),
+            text: "CONFIDENTIAL - SAMPLE".to_string(),
             opacity: 0.25,
             font_size: 36.0,
             rotation: 45.0,
@@ -279,7 +280,7 @@ mod tests {
         assert!(save_res.is_ok(), "Document save_to should succeed");
         assert!(!out_bytes.is_empty(), "Output bytes should not be empty");
         let content_str = String::from_utf8_lossy(&out_bytes);
-        assert!(content_str.contains("CONFIDENTIEL - Jean DUPONT"), "Output PDF should contain watermark text");
+        assert!(content_str.contains("CONFIDENTIAL - SAMPLE"), "Output PDF should contain watermark text");
     }
 }
 

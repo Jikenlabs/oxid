@@ -1,7 +1,6 @@
 use super::traits::{DocumentConnector, DocumentPayload, DocumentReference, SecurityContext};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use reqwest::header::{HeaderValue, AUTHORIZATION};
 use std::env;
 
 pub struct CmisConnector {
@@ -191,7 +190,7 @@ impl DocumentConnector for CmisConnector {
         &self,
         doc_ref: &DocumentReference,
         data: &[u8],
-        filename: &str,
+        _filename: &str,
         ctx: &SecurityContext,
     ) -> Result<String> {
         let object_id = &doc_ref.resource_id;
