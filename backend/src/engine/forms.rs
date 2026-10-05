@@ -8,7 +8,7 @@ use tracing::info;
 pub struct FormEngine;
 
 impl FormEngine {
-    /// Extract all AcroForm fields across pages in the given PDF document
+    /// Extrait tous les champs AcroForm sur l'ensemble des pages du document PDF donné.
     pub fn extract_form_fields(path: &Path) -> Result<FormFieldsSummary> {
         let rendition = crate::engine::converter::FormatConverter::ensure_pdf_rendition(path)?;
         let doc = Document::load(&rendition.effective_path)
@@ -27,10 +27,10 @@ impl FormEngine {
                 Err(_) => continue,
             };
 
-            // Calculate page height for coordinate conversion
+            // Calcule la hauteur de page pour la conversion des coordonnées
             let page_height = Self::get_page_height(page_dict);
 
-            // Look for Annots array
+            // Recherche le tableau des annotations (Annots)
             let annots_opt = page_dict.get(b"Annots").ok();
             let annots_arr = match annots_opt {
                 Some(Object::Array(arr)) => arr.clone(),
@@ -54,7 +54,7 @@ impl FormEngine {
                     _ => continue,
                 };
 
-                // Check if Subtype is Widget
+                // Vérifie si le sous-type est un champ interactif (Widget)
                 let subtype = annot_dict
                     .get(b"Subtype")
                     .and_then(|o| o.as_name())
@@ -85,7 +85,7 @@ impl FormEngine {
         })
     }
 
-    /// Fill form fields in the PDF document and write to output_path
+    /// Remplit les champs de formulaire dans le document PDF et écrit le résultat dans output_path.
     pub fn fill_form_fields(
         input_path: &Path,
         output_path: &Path,
@@ -95,13 +95,13 @@ impl FormEngine {
         let mut doc = Document::load(&rendition.effective_path)
             .with_context(|| format!("Failed to load PDF for forms fill: {:?}", input_path))?;
 
-        // 1. Enable /NeedAppearances true in Catalog /AcroForm so PDF viewers generate visuals
+        // 1. Active /NeedAppearances true dans Catalog /AcroForm pour forcer la régénération visuelle par les lecteurs PDF
         Self::ensure_need_appearances(&mut doc);
 
         let pages = doc.get_pages();
         let mut updated_count = 0;
 
-        // Traverse all pages and widgets
+        // Parcourt l'ensemble des pages et des widgets
         for (_page_num, &page_id) in &pages {
             let page_dict = match doc.get_object(page_id).and_then(|o| o.as_dict()) {
                 Ok(d) => d.clone(),
@@ -180,7 +180,7 @@ impl FormEngine {
             }
         }
 
-        // Save output document
+        // Enregistre le document final
         doc.save(output_path)
             .with_context(|| format!("Failed to save filled PDF to {:?}", output_path))?;
 
@@ -249,7 +249,7 @@ impl FormEngine {
         let width = (x2 - x1).abs();
         let height = (y2 - y1).abs();
 
-        // Convert bottom-left to top-left viewer coordinate space
+        // Convertit le repère d'origine PDF (bas-gauche) vers l'espace visionneuse (haut-gauche)
         let x = (pdf_x * 100.0).round() / 100.0;
         let y = ((page_height - pdf_y_top) * 100.0).round() / 100.0;
         let width = (width * 100.0).round() / 100.0;
@@ -260,17 +260,17 @@ impl FormEngine {
 
         let field_type = Self::resolve_field_type(doc, dict);
 
-        // Extract value /V
+        // Extrait la valeur /V
         let value = Self::resolve_field_value(doc, dict).unwrap_or_default();
         let default_value = dict.get(b"DV").ok().and_then(Self::object_to_string);
 
-        // Flags /Ff
+        // Indicateurs d'état /Ff (flags)
         let flags = Self::resolve_flags(doc, dict);
         let read_only = (flags & 1) != 0;
         let required = (flags & 2) != 0;
         let multiline = (flags & (1 << 12)) != 0;
 
-        // Options /Opt for choice fields
+        // Options /Opt pour les listes déroulantes et champs de choix
         let options = dict.get(b"Opt").ok().and_then(|opt_obj| {
             if let Ok(arr) = opt_obj.as_array() {
                 let mut opts = Vec::new();
@@ -319,7 +319,7 @@ impl FormEngine {
                 return Some(s);
             }
         }
-        // Check Parent if inherited
+        // Vérifie l'objet Parent si la valeur est héritée
         if let Ok(Object::Reference(parent_id)) = dict.get(b"Parent") {
             if let Ok(parent_dict) = doc.get_object(*parent_id).and_then(|o| o.as_dict()) {
                 return Self::resolve_field_name(doc, parent_dict);
@@ -365,7 +365,7 @@ impl FormEngine {
                 return Some(s);
             }
         }
-        // Check Parent if inherited
+        // Vérifie l'objet Parent si la valeur est héritée
         if let Ok(Object::Reference(parent_id)) = dict.get(b"Parent") {
             if let Ok(parent_dict) = doc.get_object(*parent_id).and_then(|o| o.as_dict()) {
                 return Self::resolve_field_value(doc, parent_dict);
@@ -403,13 +403,13 @@ impl FormEngine {
                 return (y2 - y1).abs();
             }
         }
-        842.0 // Default A4 height
+        842.0 // Hauteur standard A4 par défaut
     }
 
     fn object_to_string(obj: &Object) -> Option<String> {
         match obj {
             Object::String(bytes, _) => {
-                // Check UTF-16BE BOM
+                // Vérifie l'indicateur d'ordre des octets (BOM) UTF-16BE
                 if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
                     let u16_chars: Vec<u16> = bytes[2..]
                         .chunks_exact(2)

@@ -87,10 +87,10 @@ export class OxidViewer {
   private dicomWindowingTimeout: any = null;
   private dicomCineInterval: any = null;
 
-  // Root container (either document or specific rootEl)
+  // Conteneur racine (soit le document global, soit un élément rootEl spécifique)
   private root: HTMLElement | Document = document;
 
-  // DOM elements
+  // Éléments du DOM
   private docTitleEl!: HTMLElement;
   private pageNumberInput!: HTMLInputElement;
   private pageCountLabel!: HTMLElement;
@@ -315,14 +315,14 @@ export class OxidViewer {
     const canBuild = !isReadOnly && this.permissions.canBuild !== false;
     const canUpload = !isReadOnly && this.permissions.canUpload !== false;
 
-    // Download & Print
+    // Téléchargement et impression
     const btnDownload = this.$('btnDownloadDoc');
     if (btnDownload) btnDownload.style.display = canDownload ? 'inline-flex' : 'none';
 
     const btnPrint = this.$('btnPrintDoc');
     if (btnPrint) btnPrint.style.display = canPrint ? 'inline-flex' : 'none';
 
-    // Upload
+    // Téléversement
     const btnUpload = this.$('btnUploadDoc');
     if (btnUpload) btnUpload.style.display = canUpload ? 'inline-flex' : 'none';
 
@@ -333,7 +333,7 @@ export class OxidViewer {
     const toolNote = this.$('toolNote');
     if (toolNote) toolNote.style.display = canAnnotate ? 'inline-flex' : 'none';
 
-    // Redactions
+    // Biffures / Caviardages
     const toolRedact = this.$('toolRedact');
     if (toolRedact) toolRedact.style.display = canRedact ? 'inline-flex' : 'none';
 
@@ -347,15 +347,15 @@ export class OxidViewer {
     const btnSign = this.$('btnOpenSignModal');
     if (btnSign) btnSign.style.display = canSign ? 'inline-flex' : 'none';
 
-    // Builder
+    // Composeur de documents (Builder)
     const btnBuilder = this.$('btnOpenBuilder');
     if (btnBuilder) btnBuilder.style.display = canBuild ? 'inline-flex' : 'none';
 
-    // Forms Save
+    // Sauvegarde des formulaires
     const btnSaveForms = this.$('btnSaveForms');
     if (btnSaveForms && isReadOnly) btnSaveForms.style.display = 'none';
 
-    // Search
+    // Recherche
     const canSearch = this.permissions.canSearch !== false;
     const btnSearch = this.$('btnToggleSearch');
     if (btnSearch) btnSearch.style.display = canSearch ? 'inline-flex' : 'none';
@@ -365,7 +365,7 @@ export class OxidViewer {
     const rotateGroup = this.$('rotateGroup');
     if (rotateGroup) rotateGroup.style.display = canRotate ? 'flex' : 'none';
 
-    // View Modes (Single / Double / Grid)
+    // Modes d'affichage (Simple / Double / Grille)
     const canChangeViewMode = this.permissions.canChangeViewMode !== false;
     const btnLayoutSingle = this.$('btnLayoutSingle');
     const btnLayoutDouble = this.$('btnLayoutDouble');
@@ -374,14 +374,14 @@ export class OxidViewer {
     if (btnLayoutDouble) btnLayoutDouble.style.display = canChangeViewMode ? 'inline-flex' : 'none';
     if (btnLayoutGrid) btnLayoutGrid.style.display = canChangeViewMode ? 'inline-flex' : 'none';
 
-    // Scroll Modes (Continuous / Paginated)
+    // Modes de défilement (Continu / Paginé)
     const canChangeScrollMode = this.permissions.canChangeScrollMode !== false;
     const btnScrollContinuous = this.$('btnScrollContinuous');
     const btnScrollPage = this.$('btnScrollPage');
     if (btnScrollContinuous) btnScrollContinuous.style.display = canChangeScrollMode ? 'inline-flex' : 'none';
     if (btnScrollPage) btnScrollPage.style.display = canChangeScrollMode ? 'inline-flex' : 'none';
 
-    // Zen Mode
+    // Mode Zen
     const canZenMode = this.permissions.canZenMode !== false;
     const btnZenMode = this.$('btnToggleZenMode');
     if (btnZenMode) btnZenMode.style.display = canZenMode ? 'inline-flex' : 'none';
@@ -389,7 +389,7 @@ export class OxidViewer {
       this.setZenMode(false);
     }
 
-    // If active tool was hidden, switch to 'select'
+    // Si l'outil actif est masqué, basculer sur 'select'
     if ((!canAnnotate && (this.currentTool === 'highlight' || this.currentTool === 'note')) ||
         (!canRedact && this.currentTool === 'redact')) {
       this.setTool('select');
@@ -414,7 +414,7 @@ export class OxidViewer {
   }
 
   private setupListeners() {
-    // File upload
+    // Téléversement de fichier
     const fileInput = this.$('fileUploadInput') as HTMLInputElement;
     this.$('btnUploadDoc')?.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
@@ -422,8 +422,7 @@ export class OxidViewer {
       if (file) this.uploadDocument(file);
     });
 
-    // Drag & drop on viewer root + overlay indicator
-    // Drag & drop on viewer root + overlay indicator
+    // Glisser-déposer sur le conteneur racine avec indicateur visuel
     const rootEl = (this.root && this.root !== document && 'querySelector' in this.root)
       ? (this.root as HTMLElement)
       : document.body;
@@ -477,14 +476,14 @@ export class OxidViewer {
     rootEl.addEventListener('dragleave', handleDragLeave);
     rootEl.addEventListener('drop', handleDrop);
 
-    // If viewer is standalone (root is document or body), listen globally on window
+    // Si la visionneuse est autonome (la racine est document ou body), écouter globalement sur window
     if (rootEl === document.body || !this.root || this.root === document) {
       window.addEventListener('dragenter', handleDragEnter);
       window.addEventListener('dragover', handleDragOver);
       window.addEventListener('dragleave', handleDragLeave);
       window.addEventListener('drop', handleDrop);
     } else {
-      // Prevent browser from opening files when dropped outside the viewer component
+      // Empêcher le navigateur d'ouvrir les fichiers déposés en dehors du composant visionneuse
       window.addEventListener('dragover', (e: DragEvent) => {
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -494,7 +493,7 @@ export class OxidViewer {
       });
     }
 
-    // Page navigation
+    // Navigation entre les pages
     this.$('btnPrevPage')?.addEventListener('click', () => this.goToPage(this.activePage - 1));
     this.$('btnNextPage')?.addEventListener('click', () => this.goToPage(this.activePage + 1));
     this.pageNumberInput?.addEventListener('change', () => {
@@ -502,7 +501,7 @@ export class OxidViewer {
       if (!isNaN(p)) this.goToPage(p);
     });
 
-    // Viewport scroll page detection
+    // Détection de la page active lors du défilement de la zone de visualisation
     const viewport = this.$('documentViewport');
     if (viewport) {
       let scrollDebounce: any = null;
@@ -549,7 +548,7 @@ export class OxidViewer {
     this.$('btnFitWidth')?.addEventListener('click', () => this.fitWidth());
     this.$('btnFitPage')?.addEventListener('click', () => this.fitPage());
 
-    // Rotation buttons & Sub-Menu
+    // Boutons de rotation et sous-menu
     this.$('btnRotateCw')?.addEventListener('click', () => this.rotate(90));
     this.$('btnRotateCcw')?.addEventListener('click', () => this.rotate(-90));
 
@@ -640,18 +639,18 @@ export class OxidViewer {
       if (rotateMenu) rotateMenu.style.display = 'none';
     });
 
-    // Layout Modes & Fullscreen
+    // Modes de disposition et plein écran
     this.$('btnLayoutSingle')?.addEventListener('click', () => this.setViewMode('single'));
     this.$('btnLayoutDouble')?.addEventListener('click', () => this.setViewMode('double'));
     this.$('btnLayoutGrid')?.addEventListener('click', () => this.setViewMode('grid'));
     this.$('btnToggleFullscreen')?.addEventListener('click', () => this.toggleFullscreen());
     this.$('btnToggleZenMode')?.addEventListener('click', () => this.toggleZenMode());
 
-    // Scroll Modes (Continu vs Page par page)
+    // Modes de défilement (Continu vs Page par page)
     this.$('btnScrollContinuous')?.addEventListener('click', () => this.setScrollMode('continuous'));
     this.$('btnScrollPage')?.addEventListener('click', () => this.setScrollMode('page'));
 
-    // Floating Book Mode Magazine Controls
+    // Contrôles flottants de navigation pour le mode livre / magazine
     this.$('btnBookPrevSpread')?.addEventListener('click', () => {
       if (this.viewMode === 'double') {
         this.prevSpread();
@@ -667,7 +666,7 @@ export class OxidViewer {
       }
     });
 
-    // Keyboard navigation (Ctrl+B for sidebar, F for fullscreen, Z for Zen mode, Left/Right arrows for page turn)
+    // Navigation au clavier (Ctrl+B pour le volet, F pour plein écran, Z pour mode Zen, Flèches Gauche/Droite pour tourner les pages)
     window.addEventListener('keydown', (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       const isInputActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true');
@@ -710,7 +709,7 @@ export class OxidViewer {
       }
     });
 
-    // Handle fullscreen resize auto-fitting
+    // Ajustement automatique de l'affichage lors du basculement en plein écran
     document.addEventListener('fullscreenchange', () => {
       setTimeout(() => {
         if (this.viewMode === 'double') {
@@ -721,7 +720,7 @@ export class OxidViewer {
       }, 150);
     });
 
-    // VSCode-style Activity Bar & Sidebar tabs
+    // Volet d'activités style VSCode et onglets de la barre latérale
     const tabs = this.$$('.sidebar-tab');
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -729,14 +728,14 @@ export class OxidViewer {
         const sidebar = this.$('appSidebar');
         const isCollapsed = !sidebar || sidebar.classList.contains('collapsed');
 
-        // If sidebar is already open on this tab, clicking toggles/collapses it (VSCode UX)
+        // Si le volet latéral est déjà ouvert sur cet onglet, un clic le replie (UX style VSCode)
         if (!isCollapsed && this.activeSidebarTab === targetTab) {
           sidebar?.classList.add('collapsed');
           tab.classList.remove('active');
           return;
         }
 
-        // Open sidebar if collapsed
+        // Ouvrir le volet latéral s'il est replié
         if (sidebar && isCollapsed) {
           sidebar.classList.remove('collapsed');
         }
@@ -759,7 +758,7 @@ export class OxidViewer {
       }
     });
 
-    // Interactive tools
+    // Outils interactifs
     const toolBtns = ['toolSelect', 'toolHighlight', 'toolNote', 'toolRedact'];
     toolBtns.forEach((id) => {
       const btn = this.$(id);
@@ -770,7 +769,7 @@ export class OxidViewer {
       });
     });
 
-    // Search overlay
+    // Fenêtre contextuelle de recherche
     const searchOverlay = this.$('searchOverlay');
     this.$('btnToggleSearch')?.addEventListener('click', () => {
       if (searchOverlay) {
@@ -797,7 +796,7 @@ export class OxidViewer {
       this.navigateSearch(-1);
     });
 
-    // PII Assistant Modal
+    // Fenêtre modale de détection PII / RGPD
     const piiModal = this.$('piiModal');
     this.$('btnOpenPiiScan')?.addEventListener('click', () => {
       if (!this.currentDoc) {
@@ -819,7 +818,7 @@ export class OxidViewer {
       this.applySelectedPiiRedactions();
     });
 
-    // Signature & Stamp Modal
+    // Fenêtre modale de signature et tampon
     const signModal = this.$('signatureModal');
     this.$('btnOpenSignModal')?.addEventListener('click', () => {
       this.openSignatureDialog();
@@ -859,7 +858,7 @@ export class OxidViewer {
     });
 
 
-    // Download PDF
+    // Téléchargement du PDF
     this.$('btnDownloadDoc')?.addEventListener('click', () => {
       this.download();
     });
@@ -882,7 +881,7 @@ export class OxidViewer {
       this.saveFormValues();
     });
 
-    // Document Builder Modal
+    // Fenêtre modale du composeur de documents (Builder)
     const builderModal = this.$('builderModal');
     this.$('btnOpenBuilder')?.addEventListener('click', () => {
       if (!this.currentDoc) {
@@ -911,7 +910,7 @@ export class OxidViewer {
       if (builderModal) builderModal.style.display = 'none';
     });
 
-    // Comparison Modal
+    // Fenêtre modale de comparaison différentielle
     const compareModal = this.$('compareModal');
     this.$('btnOpenCompare')?.addEventListener('click', () => {
       if (!this.currentDoc) {
@@ -970,13 +969,13 @@ export class OxidViewer {
     }
 
 
-    // Redaction Burn-in Execution
+    // Exécution du caviardage / biffure permanente (Burn-in)
     const redactModal = this.$('redactModal');
     this.$('btnConfirmRedact')?.addEventListener('click', async () => {
       if (!this.currentDoc) return;
       const reason = (this.$('redactReasonSelect') as HTMLSelectElement).value;
 
-      // Collect all 'redact' annotations across pages
+      // Rassembler toutes les annotations de type 'redact' de l'ensemble des pages
       const redactionItems: any[] = [];
       for (const ann of this.allAnnotations) {
         if (ann.annotation_type === 'redact') {
@@ -1106,7 +1105,7 @@ export class OxidViewer {
   private displayDocument(meta: DocumentMetadata) {
     this.currentDoc = meta;
 
-    // Determine format badge
+    // Déterminer le badge de format de fichier
     const ext = meta.filename.split('.').pop()?.toLowerCase() || 'pdf';
     let badgeColor = '#ef4444';
     let badgeLabel = 'PDF';
@@ -1143,7 +1142,7 @@ export class OxidViewer {
     this.pageNumberInput.max = meta.page_count.toString();
     this.activePage = 1;
 
-    // Toggle attachments tab
+    // Afficher/masquer l'onglet des pièces jointes
     const attTab = this.$('attachmentsTab');
     const attBadge = this.$('attachmentsBadge');
     if (attTab) {
@@ -1159,7 +1158,7 @@ export class OxidViewer {
       }
     }
 
-    // Toggle CAD technical layers tab
+    // Afficher/masquer l'onglet des calques techniques CAO / DAO
     const cadTab = this.$('cadLayersTab');
     const cadBadge = this.$('cadLayersBadge');
     if (ext === 'dxf' || ext === 'dwg') {
@@ -1171,7 +1170,7 @@ export class OxidViewer {
       this.activeCadLayers.clear();
     }
 
-    // Toggle DICOM medical PACS controls
+    // Afficher/masquer les contrôles PACS médicaux DICOM
     const dicomTab = this.$('dicomTab');
     const dicomBadge = this.$('dicomBadge');
     const dicomControls = this.$('dicomControlsGroup');
@@ -1220,7 +1219,7 @@ export class OxidViewer {
     this.updateRotateMenuLabels();
     this.updateRotateTooltips();
 
-    // Reset prefetch caches and inform Web Worker
+    // Réinitialiser les caches de préchargement et notifier le Web Worker
     for (const url of this.cachedPageBlobs.values()) {
       URL.revokeObjectURL(url);
     }
@@ -1231,7 +1230,7 @@ export class OxidViewer {
     this.cachedThumbBlobs.clear();
     this.renderWorker?.postMessage({ type: 'CLEAR_CACHE' });
 
-    // Disconnect any existing observer
+    // Déconnecter les observateurs d'intersection existants
     if (this.intersectionObserver) {
       this.intersectionObserver.disconnect();
     }
@@ -1272,7 +1271,7 @@ export class OxidViewer {
       rootMargin: '150px 0px',
     });
 
-    // Multimedia: Video player rendering
+    // Multimédia : rendu du lecteur vidéo
     const isVideo = meta.mime_type?.startsWith('video/') || ['mp4', 'webm', 'ogv', 'mov', 'mkv', 'avi', 'm4v', '3gp'].includes(ext);
     if (isVideo) {
       this.renderVideoPlayer(meta);
@@ -1281,33 +1280,33 @@ export class OxidViewer {
       return;
     }
 
-    // Create page nodes
+    // Créer les nœuds DOM de chaque page
     for (const page of meta.pages) {
       this.createPageElement(page);
     }
 
-    // Immediately render Page 1 without waiting for observer
+    // Rendu immédiat de la page 1 sans attendre l'observateur d'intersection
     const firstPageCard = this.$('page-1');
     if (firstPageCard) {
       this.renderPageContent(firstPageCard, 1);
     }
 
-    // Render sidebar thumbnails (lazy loaded)
+    // Rendu des miniatures dans le volet latéral (chargement différé)
     this.renderSidebarContent('thumbnails');
 
-    // Load initial annotations
+    // Charger les annotations initiales
     this.loadAnnotations();
 
-    // Load interactive form fields
+    // Charger les champs de formulaire interactifs
     this.loadFormFields();
 
-    // Trigger predictive prefetching via Web Worker
+    // Déclencher le préchargement prédictif via le Web Worker
     this.prefetchNearbyPages(1);
 
-    // Apply page visibility rules according to scrollMode
+    // Appliquer les règles de visibilité des pages selon scrollMode
     this.updateVisiblePages();
 
-    // Emit documentloaded event
+    // Émettre l'événement documentloaded
     this.dispatchEvent('documentloaded', meta);
   }
 
@@ -1362,7 +1361,7 @@ export class OxidViewer {
     const placeholder = contentEl.querySelector('.page-placeholder');
     if (placeholder) placeholder.remove();
 
-    // Page Image (Check worker cache first for instant 120 FPS display)
+    // Image de la page (vérifier le cache du Web Worker en priorité pour un affichage instantané à 120 FPS)
     let img = contentEl.querySelector('.page-image') as HTMLImageElement;
     let renderUrl = `/api/documents/${this.currentDoc.id}/pages/${pNum}/render?dpi=120`;
     if (this.activeCadLayers.size > 0) {
@@ -1393,10 +1392,10 @@ export class OxidViewer {
       this.attachPacsOverlay(contentEl, pNum);
     }
 
-    // Trigger prefetch for neighboring pages in background
+    // Déclencher le préchargement des pages voisines en arrière-plan
     setTimeout(() => this.prefetchNearbyPages(pNum), 100);
 
-    // Vector Text Layer (deferred to keep UI thread free for image rendering)
+    // Calque de texte vectoriel (différé pour préserver le thread UI pour le rendu de l'image)
     const loadTextLayer = () => {
       let textLayer = contentEl.querySelector('.text-layer') as HTMLElement;
       if (!textLayer) {
@@ -1419,7 +1418,7 @@ export class OxidViewer {
       setTimeout(loadTextLayer, 50);
     }
 
-    // Annotation Layer
+    // Calque d'annotations
     let annotLayer = contentEl.querySelector('.annotation-layer') as HTMLElement;
     if (!annotLayer) {
       annotLayer = document.createElement('div');
@@ -1456,7 +1455,7 @@ export class OxidViewer {
       this.annotationManagers.set(pNum, annotManager);
     }
 
-    // Form Layer
+    // Calque de formulaire interactif
     this.formRenderer.render(contentEl, pNum, this.currentZoom);
   }
 
@@ -1665,7 +1664,7 @@ export class OxidViewer {
     pageCard.style.setProperty('--page-aspect', `${aspectW} / ${aspectH}`);
     pageCard.style.setProperty('--page-rot', `${rot}deg`);
 
-    // In Grid mode: calculate uniform bounding dimensions so all pages share the exact same visual zoom
+    // En mode grille : calculer des dimensions limites uniformes pour harmoniser le zoom visuel de toutes les pages
     const maxGridDim = 240;
     let gridW = maxGridDim;
     let gridH = maxGridDim;
@@ -1843,7 +1842,7 @@ export class OxidViewer {
   public rotate(deg: number, scope?: 'current' | 'all' | number) {
     if (!this.currentDoc) return;
 
-    // Default scope is this.rotateScope (which defaults to 'all' for whole document)
+    // La portée par défaut est this.rotateScope (par défaut 'all' pour l'ensemble du document)
     const targetScope = scope !== undefined ? scope : this.rotateScope;
 
     if (typeof targetScope === 'number') {
@@ -1862,7 +1861,7 @@ export class OxidViewer {
         this.applyPageRotation(pNum, newRot);
       }
     } else {
-      // 'current' active page
+      // Page active ('current')
       const pNum = this.activePage;
       const current = this.getPageRotation(pNum);
       const newRot = ((current + deg) % 360 + 360) % 360;
@@ -1889,7 +1888,7 @@ export class OxidViewer {
     this.currentTool = tool;
     this.annotationManagers.forEach((mgr) => mgr.setTool(tool));
 
-    // Update toolbar button active states
+    // Mettre à jour l'état actif des boutons de la barre d'outils
     const toolBtns = ['toolSelect', 'toolHighlight', 'toolNote', 'toolRedact'];
     toolBtns.forEach((id) => {
       const btn = this.$(id);
@@ -1914,10 +1913,10 @@ export class OxidViewer {
     this.updateRotateMenuLabels();
     this.updateRotateTooltips();
 
-    // Apply visibility rules if in page-by-page mode
+    // Appliquer les règles de visibilité en mode page par page
     this.updateVisiblePages();
 
-    // Scroll handling: in page mode, reset viewport scroll to top-left to avoid cut-off, otherwise scrollIntoView
+    // Gestion du défilement : en mode page par page, réinitialiser la position de défilement, sinon scrollIntoView
     if (this.scrollMode === 'page') {
       const vp = this.$('documentViewport');
       if (vp) {
@@ -1925,19 +1924,19 @@ export class OxidViewer {
         vp.scrollLeft = 0;
       }
     } else {
-      // In double mode, align viewport to the pair (the odd page)
+      // En mode double page, aligner la zone de visualisation sur la paire (la page impaire)
       const targetPageNum = (this.viewMode === 'double' && pageNum % 2 === 0) ? (pageNum - 1) : pageNum;
       const targetEl = this.$(`page-${targetPageNum}`) || this.$(`page-${pageNum}`);
       targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }
 
-    // Update thumbnail active state
+    // Mettre à jour l'état actif de la miniature correspondante
     this.$$('.thumb-item').forEach((item) => {
       item.classList.remove('active');
     });
     this.$(`.thumb-item[data-page="${pageNum}"]`)?.classList.add('active');
 
-    // Update floating book buttons state
+    // Mettre à jour l'état des boutons flottants du mode livre
     const prevBtn = this.$('btnBookPrevSpread') as HTMLButtonElement;
     const nextBtn = this.$('btnBookNextSpread') as HTMLButtonElement;
     if (this.viewMode === 'double') {
@@ -1948,7 +1947,7 @@ export class OxidViewer {
       if (nextBtn) nextBtn.disabled = pageNum >= this.currentDoc.page_count;
     }
 
-    // Update top toolbar navigation buttons
+    // Mettre à jour les boutons de navigation de la barre supérieure
     const btnPrevPage = this.$('btnPrevPage') as HTMLButtonElement;
     const btnNextPage = this.$('btnNextPage') as HTMLButtonElement;
     if (btnPrevPage) btnPrevPage.disabled = pageNum <= 1;
@@ -1979,7 +1978,7 @@ export class OxidViewer {
         this.fitPage();
       }
     } else {
-      // Return to continuous scroll: scroll current active page into view
+      // Retour au défilement continu : faire défiler la page active dans la vue
       const targetPageNum = (this.viewMode === 'double' && this.activePage % 2 === 0) ? (this.activePage - 1) : this.activePage;
       const targetEl = this.$(`page-${targetPageNum}`) || this.$(`page-${this.activePage}`);
       targetEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
@@ -1994,7 +1993,7 @@ export class OxidViewer {
     const isDouble = this.viewMode === 'double';
     const isGrid = this.viewMode === 'grid';
 
-    // In grid mode, always show all pages
+    // En mode grille, toujours afficher toutes les pages
     if (isGrid || !isPageMode) {
       for (const page of this.currentDoc.pages) {
         const pNum = page.page_number;
@@ -2007,7 +2006,7 @@ export class OxidViewer {
       return;
     }
 
-    // Single page mode (page-by-page): only show this.activePage
+    // Mode simple page (page par page) : afficher uniquement this.activePage
     if (!isDouble) {
       for (const page of this.currentDoc.pages) {
         const pNum = page.page_number;
@@ -2023,7 +2022,7 @@ export class OxidViewer {
         }
       }
 
-      // Pre-render surrounding pages ahead and behind so flipping is 100% instantaneous without any flicker
+      // Pré-rendre les pages adjacentes en amont et en aval pour un changement de page instantané sans scintillement
       const ext = this.currentDoc.filename.split('.').pop()?.toLowerCase() || '';
       const isDicom = ext === 'dcm' || ext === 'dicom';
       const aheadCount = isDicom ? 8 : 4;
@@ -2039,7 +2038,7 @@ export class OxidViewer {
       return;
     }
 
-    // Double page mode (spread-by-spread)
+    // Mode double page (planche par planche)
     const currentOdd = this.activePage % 2 === 1 ? this.activePage : (this.activePage - 1);
     const leftPageNum = currentOdd;
     const rightPageNum = currentOdd + 1;
@@ -2080,7 +2079,7 @@ export class OxidViewer {
     viewport.classList.remove('layout-single', 'layout-double', 'layout-grid');
     viewport.classList.add(`layout-${mode}`);
 
-    // Update active state on layout buttons
+    // Mettre à jour l'état actif des boutons de disposition
     const btnSingle = this.$('btnLayoutSingle');
     const btnDouble = this.$('btnLayoutDouble');
     const btnGrid = this.$('btnLayoutGrid');
@@ -2089,7 +2088,7 @@ export class OxidViewer {
     btnDouble?.classList.toggle('active', mode === 'double');
     btnGrid?.classList.toggle('active', mode === 'grid');
 
-    // Scroll mode buttons: disable/dim them when in grid view
+    // Boutons de mode de défilement : désactiver/atténuer en affichage grille
     const btnContinuous = this.$('btnScrollContinuous') as HTMLButtonElement;
     const btnPage = this.$('btnScrollPage') as HTMLButtonElement;
     if (btnContinuous) {
@@ -2103,16 +2102,16 @@ export class OxidViewer {
       btnPage.style.pointerEvents = mode === 'grid' ? 'none' : '';
     }
 
-    // Adjust zoom & layout behavior
+    // Ajuster le zoom et le comportement de disposition
     for (const page of this.currentDoc?.pages || []) {
       this.updatePageLayoutDimensions(page.page_number);
     }
 
-    // Apply visibility changes according to current scroll mode
+    // Appliquer les changements de visibilité selon le mode de défilement actif
     this.updateVisiblePages();
 
     if (mode === 'grid') {
-      // In grid mode, enable interactive clicks on pages to jump back to single mode
+      // En mode grille, activer le clic interactif sur les pages pour revenir au mode simple page
       this.pagesContainer.querySelectorAll('.page-container').forEach((el) => {
         const pNum = parseInt((el as HTMLElement).dataset.pageNumber || '1', 10);
         (el as HTMLElement).onclick = () => {
@@ -2121,7 +2120,7 @@ export class OxidViewer {
         };
       });
     } else {
-      // Reset onclick handlers
+      // Réinitialiser les gestionnaires de clic onclick
       this.pagesContainer.querySelectorAll('.page-container').forEach((el) => {
         (el as HTMLElement).onclick = null;
       });
@@ -2146,7 +2145,7 @@ export class OxidViewer {
   public nextSpread() {
     if (!this.currentDoc) return;
     if (this.viewMode === 'double') {
-      // In double mode: if activePage is 1 (or 2), next pair is 3
+      // En mode double page : si activePage est 1 (ou 2), la paire suivante commence à 3
       const currentOdd = this.activePage % 2 === 1 ? this.activePage : (this.activePage - 1);
       const nextOdd = currentOdd + 2;
       if (nextOdd <= this.currentDoc.page_count) {
@@ -2215,7 +2214,7 @@ export class OxidViewer {
         : 'Mode Zen (Masquer barres d\'outils, réapparition au survol) (Z)');
     }
 
-    // Trigger page readjustment to fill viewport comfortably
+    // Déclencher le réajustement des pages pour occuper l'espace de manière optimale
     setTimeout(() => {
       if (this.viewMode === 'double') {
         this.fitPage();
@@ -2324,7 +2323,7 @@ export class OxidViewer {
     this.sidebarContent.innerHTML = '';
     this.sidebarContent.onscroll = null;
 
-    // Update panel header title
+    // Mettre à jour le titre de l'en-tête du panneau
     const titleEl = this.$('sidebarPanelTitle');
     if (titleEl) {
       const titles: Record<string, string> = {
@@ -2363,7 +2362,7 @@ export class OxidViewer {
           this.sidebarContent.appendChild(this.createThumbnailItem(page.page_number, false));
         }
       } else {
-        // Dynamic cumulative offsets for smooth virtualization with mixed aspect ratios (Landscape/Portrait)
+        // Décalages cumulatifs dynamiques pour une virtualisation fluide avec ratios d'aspect mixtes (Paysage/Portrait)
         const offsets: number[] = [];
         let totalH = 0;
         for (let i = 0; i < totalPages; i++) {
@@ -2598,7 +2597,7 @@ export class OxidViewer {
   }
 
   // =========================================================================
-  // CAD / DAO Plans & Technical Layers Management
+  // Gestion des plans et calques techniques CAO / DAO
   // =========================================================================
 
   public async loadCadLayers() {
@@ -2751,7 +2750,7 @@ export class OxidViewer {
   }
 
   // =========================================================================
-  // DICOM Medical Imaging & Contrast Windowing (HU)
+  // Imagerie médicale DICOM et fenêtrage de contraste (HU)
   // =========================================================================
 
   public async loadDicomData() {
@@ -2775,7 +2774,7 @@ export class OxidViewer {
         }
         if (dicomControls) dicomControls.style.display = 'flex';
 
-        // Attach overlay to existing rendered pages
+        // Associer l'affichage tête haute (overlay) aux pages déjà rendues
         for (const page of this.currentDoc.pages) {
           const card = this.$(`page-${page.page_number}`);
           if (card) {
@@ -2814,7 +2813,7 @@ export class OxidViewer {
     const labelEl = this.$('dicomPresetLabel');
     if (labelEl) labelEl.textContent = target.label;
 
-    // Update active class & checkmarks in toolbar dropdown
+    // Mettre à jour la classe active et les coches dans le menu déroulant de la barre d'outils
     this.$$('[data-preset]').forEach((b) => {
       const isCurrent = b.getAttribute('data-preset') === presetName;
       b.classList.toggle('active', isCurrent);
@@ -2822,7 +2821,7 @@ export class OxidViewer {
       if (check) check.innerHTML = isCurrent ? '✓' : '&nbsp;';
     });
 
-    // Update active class in sidebar grid
+    // Mettre à jour la classe active dans la grille du volet latéral
     this.$$('[data-preset-name]').forEach((b) => {
       b.classList.toggle('active', b.getAttribute('data-preset-name') === presetName);
     });
@@ -2835,12 +2834,12 @@ export class OxidViewer {
     this.dicomWc = center;
     this.dicomWw = Math.max(1, width);
 
-    // Update PACS HUD overlays
+    // Mettre à jour les affichages tête haute (HUD) PACS
     this.$$('.pacs-wc-ww').forEach((el) => {
       el.textContent = `WC: ${this.dicomWc} WW: ${this.dicomWw}`;
     });
 
-    // Update sidebar inputs/display if open
+    // Mettre à jour les champs et affichages du volet latéral s'il est ouvert
     const sliderWc = this.$('dicomSliderWc') as HTMLInputElement;
     const sliderWw = this.$('dicomSliderWw') as HTMLInputElement;
     const valWc = this.$('dicomValWc');
@@ -2856,7 +2855,7 @@ export class OxidViewer {
       huRange.textContent = `Plage : [${minHu} HU → ${maxHu} HU]`;
     }
 
-    // Debounce image re-rendering
+    // Temporiser le nouveau rendu de l'image (anti-rebond)
     if (this.dicomWindowingTimeout) {
       clearTimeout(this.dicomWindowingTimeout);
     }
@@ -2894,7 +2893,7 @@ export class OxidViewer {
         if (!this.currentDoc) return;
         const next = (this.activePage % this.currentDoc.page_count) + 1;
         this.goToPage(next);
-      }, 66); // ~15 FPS cine loop rate
+      }, 66); // Cadence de boucle ciné à environ 15 FPS
     }
   }
 
@@ -3057,7 +3056,7 @@ export class OxidViewer {
       </div>
     `;
 
-    // Presets buttons event listeners
+    // Écouteurs d'événements pour les boutons de préréglages
     container.querySelectorAll('[data-preset-name]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const pName = btn.getAttribute('data-preset-name');
@@ -3067,7 +3066,7 @@ export class OxidViewer {
       });
     });
 
-    // Slider inputs
+    // Curseurs de réglage manuel
     const sliderWc = container.querySelector('#dicomSliderWc') as HTMLInputElement;
     const sliderWw = container.querySelector('#dicomSliderWw') as HTMLInputElement;
 
@@ -3093,11 +3092,11 @@ export class OxidViewer {
     let width = 140;
     let height = 180;
     if (aspect >= 1.0) {
-      // Landscape (e.g. 16:9, 4:3, or A4 landscape)
+      // Paysage (ex. 16:9, 4:3, ou A4 paysage)
       width = 140;
       height = Math.max(40, Math.round(140 / aspect));
     } else {
-      // Portrait (e.g. A4 portrait)
+      // Portrait (ex. A4 portrait)
       height = 180;
       width = Math.max(40, Math.min(140, Math.round(180 * aspect)));
     }
@@ -3128,7 +3127,7 @@ export class OxidViewer {
     img.loading = 'lazy';
     img.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
 
-    // Quick rotate button on hover
+    // Bouton de rotation rapide au survol
     const rotateBtn = document.createElement('button');
     rotateBtn.className = 'thumb-rotate-btn';
     rotateBtn.title = `Pivoter la page ${pNum} de 90°`;
@@ -3139,7 +3138,7 @@ export class OxidViewer {
     };
     item.appendChild(rotateBtn);
     
-    // If cached, display instantly; otherwise observe for lazy load
+    // Si en cache, afficher immédiatement ; sinon observer pour chargement différé
     const cached = this.cachedThumbBlobs.get(pNum);
     if (cached) {
       img.src = cached;
@@ -3241,25 +3240,25 @@ export class OxidViewer {
   private navigateSearch(direction: number) {
     if (this.searchMatches.length === 0) return;
 
-    // Remove active highlight on current
+    // Retirer le surlignage actif de l'occurrence courante
     if (this.currentSearchIndex >= 0 && this.currentSearchIndex < this.searchMatches.length) {
       this.searchMatches[this.currentSearchIndex].element.classList.remove('highlight-active');
     }
 
     this.currentSearchIndex += direction;
     if (this.currentSearchIndex >= this.searchMatches.length) {
-      this.currentSearchIndex = 0; // Loop back
+      this.currentSearchIndex = 0; // Revenir au début
     } else if (this.currentSearchIndex < 0) {
-      this.currentSearchIndex = this.searchMatches.length - 1; // Loop to end
+      this.currentSearchIndex = this.searchMatches.length - 1; // Aller à la fin
     }
 
     const match = this.searchMatches[this.currentSearchIndex];
     match.element.classList.add('highlight-active');
 
-    // Scroll element into view
+    // Faire défiler l'élément dans la zone visible
     match.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Update page number if different
+    // Mettre à jour le numéro de page si différent
     if (this.activePage !== match.pageNumber) {
       this.activePage = match.pageNumber;
       this.pageNumberInput.value = this.activePage.toString();
@@ -3271,7 +3270,7 @@ export class OxidViewer {
     }
   }
 
-  // --- PII / RGPD Assistant Methods ---
+  // --- Méthodes de l'assistant PII / RGPD ---
 
   public async runPiiScan() {
     if (!this.currentDoc) {
@@ -3624,7 +3623,7 @@ export class OxidViewer {
           formsBadge.style.display = 'flex';
           formsBadge.textContent = summary.fields_count.toString();
         }
-        // Render onto currently rendered pages
+        // Effectuer le rendu sur les pages actuellement visibles
         document.querySelectorAll('.page-container[data-rendered="true"]').forEach((card) => {
           const pNum = parseInt((card as HTMLElement).dataset.pageNumber || '1', 10);
           this.formRenderer.render(card as HTMLElement, pNum, this.currentZoom);
@@ -3673,7 +3672,7 @@ export class OxidViewer {
       const result: FormFillResponse = await resp.json();
       this.dispatchEvent('formsaved', result);
 
-      // Refresh page images to reflect /NeedAppearances rasterization
+      // Actualiser les images de page pour refléter la rastérisation /NeedAppearances
       for (const url of this.cachedPageBlobs.values()) URL.revokeObjectURL(url);
       this.cachedPageBlobs.clear();
       this.renderWorker?.postMessage({ type: 'CLEAR_CACHE' });
@@ -3696,7 +3695,7 @@ export class OxidViewer {
   }
 
   // =========================================================================
-  // Multimedia & Video Player
+  // Lecteur multimédia et vidéo
   // =========================================================================
 
   private renderVideoPlayer(meta: DocumentMetadata) {
@@ -3907,7 +3906,7 @@ export class OxidViewer {
 
     document.addEventListener('fullscreenchange', updateFullscreenBtnUI);
 
-    // Auto-hide controls & cursor during playback
+    // Masquage automatique des commandes et du curseur pendant la lecture
     let hideControlsTimeout: any = null;
     const controlsOverlay = wrapper.querySelector('#videoControlsOverlay') as HTMLElement;
 
@@ -3934,7 +3933,7 @@ export class OxidViewer {
       videoContainer.style.cursor = 'default';
     });
 
-    // Keyboard shortcuts
+    // Raccourcis clavier
     const handleVideoKey = (e: KeyboardEvent) => {
       if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
       if (e.key === ' ' || e.code === 'Space') {
@@ -3969,10 +3968,10 @@ export class OxidViewer {
 }
 
 
-// Auto bootstrap only for standalone index.html (when <oxid-viewer> Web Component is not used)
+// Démarrage automatique uniquement pour index.html autonome (lorsque le Web Component <oxid-viewer> n'est pas utilisé)
 if (typeof window !== 'undefined') {
   const initStandalone = () => {
-    // Only auto-instantiate if there is NO <oxid-viewer> Web Component in DOM
+    // Instanciation automatique uniquement s'il n'y a AUCUN Web Component <oxid-viewer> dans le DOM
     if (!document.querySelector('oxid-viewer')) {
       if (!(window as any).oxidViewer) {
         (window as any).oxidViewer = new OxidViewer();

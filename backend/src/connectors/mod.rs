@@ -89,7 +89,7 @@ impl DocumentStorage {
         if let Ok(entries) = fs::read_dir(&self.storage_dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                // Match exact stem (e.g. "doc_id.pdf" or "doc_id.ext"), not arbitrary prefixes
+                // Correspondance exacte de la racine (ex: "doc_id.pdf" ou "doc_id.ext"), pas de préfixes arbitraires
                 if (name == format!("{}.pdf", doc_id) || name.starts_with(&format!("{}.", doc_id)))
                     && !name.ends_with(".meta")
                     && !name.ends_with(".xfdf")
@@ -140,7 +140,7 @@ impl DocumentStorage {
         }
     }
 
-    // Associate remote connector metadata
+    // Associe les métadonnées du connecteur distant
     pub fn save_connector_mapping(&self, doc_id: &str, doc_ref: &DocumentReference) {
         if crate::security::validate_doc_id(doc_id).is_err() {
             return;
@@ -248,13 +248,13 @@ impl ConnectorRegistry {
 
         let payload = connector.fetch_document(doc_ref, ctx).await?;
 
-        // Save into local caching storage
+        // Enregistre dans le stockage local de cache
         let (doc_id, _path) = storage.save_document(&payload.filename, &payload.data)?;
 
-        // Store connector mapping
+        // Enregistre le mappage du connecteur
         storage.save_connector_mapping(&doc_id, doc_ref);
 
-        // Fetch remote annotations if present
+        // Récupère les annotations distantes si présentes
         if let Ok(Some(xfdf)) = connector.fetch_annotations(doc_ref, ctx).await {
             let _ = storage.save_annotations_xfdf(&doc_id, &xfdf);
         }

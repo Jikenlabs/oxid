@@ -27,7 +27,7 @@ impl FormatConverter {
             .unwrap_or("")
             .to_lowercase();
 
-        // Native PDF or direct Images
+        // Format PDF natif ou images directes
         if ext == "pdf"
             || ext == "png"
             || ext == "jpg"
@@ -46,11 +46,11 @@ impl FormatConverter {
             });
         }
 
-        // Multimedia: Video formats with automatic poster extraction
+        // Multimédia : formats vidéo avec extraction automatique d'affiche (poster)
         if Self::is_video(&ext) {
             let poster_path = path.with_extension(format!("{}.poster.jpg", ext));
             if !poster_path.exists() {
-                // Generate a video thumbnail poster at 1s (or 0s) using ffmpeg
+                // Génère une vignette d'affiche vidéo à 1s (ou 0s) avec ffmpeg
                 let _ = std::process::Command::new("ffmpeg")
                     .arg("-y")
                     .arg("-ss").arg("00:00:01")
@@ -79,7 +79,7 @@ impl FormatConverter {
             });
         }
 
-        // Multimedia: Audio formats
+        // Multimédia : formats audio
         if Self::is_audio(&ext) {
             return Ok(RenditionResult {
                 effective_path: path.to_path_buf(),
@@ -89,7 +89,7 @@ impl FormatConverter {
             });
         }
 
-        // Cache rendition path
+        // Chemin du PDF de rendu en cache
         let rendition_path = path.with_extension(format!("{}.rendition.pdf", ext));
         if rendition_path.exists() {
             return Ok(RenditionResult {
@@ -109,29 +109,29 @@ impl FormatConverter {
                 let res = email::EmailConverter::convert_eml_to_pdf(path, &rendition_path)?;
                 attachments = res.attachments;
             }
-            // Office Documents & Diagrams (Visio VSD/VSDX, OpenDocument Draw ODG/ODT/ODS/ODP)
+            // Documents bureautiques et schémas (Visio VSD/VSDX, OpenDocument Draw ODG/ODT/ODS/ODP)
             "docx" | "doc" | "xlsx" | "xls" | "pptx" | "ppt"
             | "odt" | "ods" | "odp" | "odg" | "rtf"
             | "vsd" | "vsdx" => {
                 office::OfficeConverter::convert_to_pdf(path, &rendition_path)?;
             }
-            // CAD / DAO (AutoCAD DXF & DWG with layers)
+            // CAO / DAO (AutoCAD DXF & DWG avec calques)
             "dxf" | "dwg" => {
                 cad::CadConverter::convert_cad_to_pdf(path, &rendition_path, None)?;
             }
-            // Medical Imaging DICOM (CT, MRI, X-Ray with Hounsfield windowing)
+            // Imagerie médicale DICOM (scanner, IRM, radiographie avec fenêtrage Hounsfield)
             "dcm" | "dicom" => {
                 dicom::DicomConverter::convert_dicom_to_pdf(path, &rendition_path, None, None)?;
             }
-            // SVG Vectorial
+            // Dessin vectoriel SVG
             "svg" => {
                 text::TextConverter::convert_text_to_pdf(path, &rendition_path)?;
             }
-            // Apple & Mac Image Formats (HEIC, HEIF, ICNS, DNG, PICT)
+            // Formats d'image Apple et Mac (HEIC, HEIF, ICNS, DNG, PICT)
             "heic" | "heif" | "icns" | "dng" | "pict" | "pct" => {
                 apple::AppleImageConverter::convert_to_pdf(path, &rendition_path)?;
             }
-            // Markdown with Mermaid Diagrams
+            // Markdown avec diagrammes Mermaid
             "md" | "markdown" => {
                 text::TextConverter::convert_markdown_to_pdf(path, &rendition_path)?;
             }
@@ -139,7 +139,7 @@ impl FormatConverter {
                 text::TextConverter::convert_text_to_pdf(path, &rendition_path)?;
             }
             _ => {
-                // Fallback attempt text conversion for any textual/unknown file
+                // Tentative de conversion textuelle de secours pour tout fichier textuel ou inconnu
                 text::TextConverter::convert_text_to_pdf(path, &rendition_path)?;
             }
         }

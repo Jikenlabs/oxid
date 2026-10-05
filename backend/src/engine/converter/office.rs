@@ -63,7 +63,7 @@ impl OfficeConverter {
         let engine = OfficeEnginePreference::from_env();
         let is_office2pdf_compatible = ext == "docx" || ext == "xlsx" || ext == "pptx";
 
-        // Mode 1: Hybrid (default) -> office2pdf for standard office docs, Gotenberg for complex/large layouts
+        // Mode 1 : Hybride (par défaut) -> office2pdf pour les documents bureautiques standards, Gotenberg pour les mises en page complexes/volumineuses
         if engine == OfficeEnginePreference::Hybrid {
             let file_len = fs::metadata(input_path).map(|m| m.len()).unwrap_or(0);
             let has_complex_wrapping = ext == "docx" && Self::docx_has_complex_wrapping(input_path);
@@ -92,7 +92,7 @@ impl OfficeConverter {
                 }
             }
         }
-        // Mode 2: Force Office2Pdf
+        // Mode 2 : Force l'utilisation d'Office2Pdf
         else if engine == OfficeEnginePreference::Office2Pdf {
             if is_office2pdf_compatible {
                 if let Ok(()) = Self::convert_via_office2pdf(input_path, output_path) {
@@ -100,13 +100,13 @@ impl OfficeConverter {
                     return Ok(());
                 }
             }
-            // If office2pdf can't handle legacy formats like .doc, fall back to soffice
+            // Si office2pdf ne gère pas les formats historiques comme .doc, bascule de secours vers soffice
             if let Ok(()) = Self::convert_via_soffice(input_path, output_path) {
                 info!("Successfully converted .{} to PDF via LibreOffice engine (fallback for unhandled format)", ext);
                 return Ok(());
             }
         }
-        // Mode 3: Force Gotenberg / LibreOffice
+        // Mode 3 : Force Gotenberg / LibreOffice
         else if engine == OfficeEnginePreference::Gotenberg {
             if let Ok(()) = Self::convert_via_soffice(input_path, output_path) {
                 info!("Successfully converted .{} to PDF via high-fidelity LibreOffice engine", ext);
@@ -114,7 +114,7 @@ impl OfficeConverter {
             }
         }
 
-        // Pure Rust native fallback parsers for DOCX, XLSX, ODG, VSDX, ODT, RTF
+        // Analyseurs natifs de secours 100% Rust pour DOCX, XLSX, ODG, VSDX, ODT, RTF
         if ext == "docx" {
             return Self::convert_docx_native(input_path, output_path);
         }
@@ -137,7 +137,7 @@ impl OfficeConverter {
     }
 
     pub fn get_office2pdf_runner() -> Option<String> {
-        // 1. bin/office2pdf in project or relative paths
+        // 1. Binaire bin/office2pdf dans le projet ou chemins relatifs
         for candidate in &[
             "bin/office2pdf",
             "./bin/office2pdf",
@@ -157,7 +157,7 @@ impl OfficeConverter {
             }
         }
 
-        // 2. System PATH
+        // 2. Variable d'environnement PATH système
         if Command::new("office2pdf")
             .arg("--version")
             .output()
@@ -224,7 +224,7 @@ impl OfficeConverter {
     }
 
     fn get_soffice_runner() -> Option<(String, Vec<String>)> {
-        // 1. Host or PATH soffice
+        // 1. Binaire soffice sur l'hôte ou dans le PATH
         if Command::new("soffice")
             .arg("--version")
             .output()
@@ -234,7 +234,7 @@ impl OfficeConverter {
             return Some(("soffice".to_string(), vec![]));
         }
 
-        // 2. Project bin/soffice wrapper script
+        // 2. Script wrapper bin/soffice du projet
         for candidate in &["bin/soffice", "../bin/soffice", "./bin/soffice"] {
             if Path::new(candidate).exists() {
                 if Command::new(candidate)
@@ -248,7 +248,7 @@ impl OfficeConverter {
             }
         }
 
-        // 3. Direct Docker exec with running oxid-gotenberg (or oxidrender-gotenberg) container
+        // 3. Exécution directe Docker dans un conteneur oxid-gotenberg (ou oxidrender-gotenberg) en cours d'exécution
         if let Ok(output) = Command::new("docker")
             .args(["ps", "--format", "{{.Names}}"])
             .output()
@@ -274,7 +274,7 @@ impl OfficeConverter {
             }
         }
 
-        // 4. Direct Docker run fallback with gotenberg/gotenberg:8
+        // 4. Exécution directe Docker de secours avec l'image gotenberg/gotenberg:8
         if let Ok(output) = Command::new("docker")
             .args(["image", "inspect", "gotenberg/gotenberg:8"])
             .output()
@@ -302,7 +302,7 @@ impl OfficeConverter {
     }
 
     fn convert_via_soffice(input_path: &Path, output_path: &Path) -> Result<()> {
-        // 1. Try Gotenberg HTTP REST API if GOTENBERG_URL or OXID_GOTENBERG_URL is configured
+        // 1. Tente l'API REST HTTP Gotenberg si GOTENBERG_URL ou OXID_GOTENBERG_URL est configurée
         if let Ok(()) = Self::convert_via_gotenberg_http(input_path, output_path) {
             return Ok(());
         }
@@ -339,7 +339,7 @@ impl OfficeConverter {
             bail!("soffice conversion exited with failure: {}", status);
         }
 
-        // Locate the generated pdf in temp_dir
+        // Localise le PDF généré dans le répertoire temporaire
         for entry in fs::read_dir(&abs_temp)?.flatten() {
             if entry.path().extension().and_then(|e| e.to_str()) == Some("pdf") {
                 fs::copy(entry.path(), output_path)?;
@@ -366,7 +366,7 @@ impl OfficeConverter {
 
         let blocks = Self::extract_docx_blocks(&xml_content)?;
 
-        // Synthesize PDF
+        // Synthétise le document PDF
         let mut doc = Document::with_version("1.4");
         let pages_id = doc.new_object_id();
 
@@ -382,7 +382,7 @@ impl OfficeConverter {
             "BaseFont" => "Helvetica-Bold",
         });
 
-        // Preload and convert all referenced images into PDF XObjects
+        // Précharge et convertit toutes les images référencées en XObjects PDF
         let mut loaded_images: HashMap<String, PreloadedImage> = HashMap::new();
         for (r_id, zip_path) in &rel_map {
             if let Ok(img_file) = archive.by_name(zip_path) {
@@ -791,7 +791,7 @@ impl OfficeConverter {
         let file = File::open(input_path).context("Failed to open xlsx file")?;
         let mut archive = ZipArchive::new(file).context("Failed to read xlsx as ZIP archive")?;
 
-        // 1. Read shared strings if available
+        // 1. Lit la table des chaînes partagées (sharedStrings) si présente
         let mut shared_strings = Vec::new();
         if let Ok(ss_entry) = archive.by_name("xl/sharedStrings.xml") {
             let mut ss_xml = String::new();
@@ -814,7 +814,7 @@ impl OfficeConverter {
             }
         }
 
-        // 2. Read sheet1.xml
+        // 2. Lit la première feuille sheet1.xml
         let mut sheet_xml = String::new();
         if let Ok(sheet_entry) = archive.by_name("xl/worksheets/sheet1.xml") {
             let _ = sheet_entry.take(30 * 1024 * 1024).read_to_string(&mut sheet_xml);
@@ -849,7 +849,7 @@ impl OfficeConverter {
         };
         extracted_text.push(title.to_string());
 
-        // For OpenDocument files, content is in content.xml
+        // Pour les fichiers OpenDocument, le contenu réside dans content.xml
         let candidate_files = ["content.xml", "visio/pages/page1.xml", "visio/document.xml"];
         for candidate in candidate_files {
             if let Ok(entry) = archive.by_name(candidate) {
@@ -985,7 +985,7 @@ impl OfficeConverter {
         Ok(())
     }
 
-    /// Converts an office/text document via Gotenberg's HTTP REST API (/forms/libreoffice/convert)
+    /// Convertit un document bureautique/texte via l'API REST HTTP de Gotenberg (/forms/libreoffice/convert).
     pub fn convert_via_gotenberg_http(input_path: &Path, output_path: &Path) -> Result<()> {
         let gotenberg_url = std::env::var("OXID_GOTENBERG_URL")
             .or_else(|_| std::env::var("GOTENBERG_URL"))
@@ -999,7 +999,7 @@ impl OfficeConverter {
             .and_then(|n| n.to_str())
             .unwrap_or("document");
 
-        // Construct standard multipart/form-data payload for Gotenberg LibreOffice conversion
+        // Construit la charge utile multipart/form-data standard pour la conversion LibreOffice de Gotenberg
         let boundary = format!("----OxidGotenbergBoundary{}", uuid::Uuid::new_v4().simple());
         let mut body = Vec::new();
 
@@ -1049,7 +1049,7 @@ impl OfficeConverter {
         Ok(())
     }
 
-    /// Pure Rust native fallback converter for RTF (Rich Text Format) documents
+    /// Convertisseur de secours natif en pur Rust pour les documents RTF (Rich Text Format).
     pub fn convert_rtf_native(input_path: &Path, output_path: &Path) -> Result<()> {
         let raw_bytes = fs::read(input_path)
             .with_context(|| format!("Failed to read RTF file: {:?}", input_path))?;
@@ -1071,7 +1071,7 @@ impl OfficeConverter {
         Self::render_lines_to_pdf(&lines, output_path)
     }
 
-    /// Extracts clean readable text from RTF content by stripping RTF control sequences and groups
+    /// Extrait le texte lisible nettoyé d'un flux RTF en supprimant les séquences de contrôle et groupes RTF.
     pub fn extract_rtf_text(bytes: &[u8]) -> String {
         let raw = String::from_utf8_lossy(bytes);
         let mut result = String::with_capacity(raw.len());
@@ -1085,7 +1085,7 @@ impl OfficeConverter {
                     group_depth += 1;
                     if chars.peek() == Some(&'\\') {
                         let mut lookahead = chars.clone();
-                        lookahead.next(); // skip '\'
+                        lookahead.next(); // ignore '\'
                         let mut word = String::new();
                         while let Some(&ch) = lookahead.peek() {
                             if ch.is_ascii_alphabetic() || ch == '*' {
@@ -1095,7 +1095,7 @@ impl OfficeConverter {
                                 break;
                             }
                         }
-                        // Skip non-textual metadata/font/color groups
+                        // Ignore les groupes de métadonnées non textuelles, polices et tables de couleurs
                         if word == "fonttbl"
                             || word == "colortbl"
                             || word == "stylesheet"
@@ -1128,8 +1128,8 @@ impl OfficeConverter {
                             continue;
                         }
                         if next == '\'' {
-                            // Hex escaped character: \'hh
-                            chars.next(); // consume '\''
+                            // Caractère échappé hexadécimal : \'hh
+                            chars.next(); // consomme '\''
                             let mut hex = String::new();
                             for _ in 0..2 {
                                 if let Some(&h) = chars.peek() {
@@ -1141,7 +1141,7 @@ impl OfficeConverter {
                             }
                             if let Ok(byte_val) = u8::from_str_radix(&hex, 16) {
                                 if skip_group_depth.is_none() {
-                                    // Treat Windows-1252 / Latin-1 common chars or fallback to ascii
+                                    // Gère les caractères courants Windows-1252 / Latin-1 ou bascule en ASCII
                                     if byte_val >= 32 {
                                         result.push(byte_val as char);
                                     }
@@ -1158,7 +1158,7 @@ impl OfficeConverter {
                         }
                     }
 
-                    // Read control word
+                    // Lit le mot de contrôle
                     let mut word = String::new();
                     while let Some(&ch) = chars.peek() {
                         if ch.is_ascii_alphabetic() {
@@ -1169,7 +1169,7 @@ impl OfficeConverter {
                         }
                     }
 
-                    // Optional numeric parameter
+                    // Paramètre numérique optionnel
                     while let Some(&ch) = chars.peek() {
                         if ch.is_ascii_digit() || ch == '-' {
                             chars.next();
@@ -1178,7 +1178,7 @@ impl OfficeConverter {
                         }
                     }
 
-                    // Optional trailing space delimiter
+                    // Espace délimiteur final optionnel
                     if chars.peek() == Some(&' ') {
                         chars.next();
                     }
@@ -1192,7 +1192,7 @@ impl OfficeConverter {
                     }
                 }
                 '\r' | '\n' => {
-                    // RTF ignores line breaks in source unless specified by \par
+                    // RTF ignore les retours à la ligne du code source sauf si indiqués par \par
                 }
                 _ => {
                     if skip_group_depth.is_none() {

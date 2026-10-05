@@ -61,17 +61,17 @@ export class DocumentBuilderUI {
         item.classList.add('builder-item-deleted');
       }
 
-      // Calculate orientation & dimensions
+      // Calcule l'orientation et les dimensions
       const totalRotation = p.rotation % 360;
       const isTurned90or270 = totalRotation === 90 || totalRotation === 270;
       const baseRatio = (p.width && p.height) ? (p.width / p.height) : 0.707;
       const visualRatio = isTurned90or270 ? (1 / baseRatio) : baseRatio;
 
-      // Max thumbnail bounding box: 150px wide, 160px tall
+      // Boîte englobante maximale de la miniature : 150 px de large, 160 px de haut
       let boxW = 120;
       let boxH = 120;
       if (visualRatio >= 1) {
-        // Landscape
+        // Paysage
         boxW = 150;
         boxH = Math.max(70, Math.round(150 / visualRatio));
       } else {
@@ -93,7 +93,7 @@ export class DocumentBuilderUI {
       img.style.transition = 'transform 0.2s ease';
 
       if (isTurned90or270) {
-        // Image rotated 90/270deg: width & height swapped
+        // Image pivotée à 90/270° : inversion largeur et hauteur
         img.style.width = `${boxH}px`;
         img.style.height = `${boxW}px`;
         img.style.transform = `rotate(${totalRotation}deg)`;
@@ -106,7 +106,7 @@ export class DocumentBuilderUI {
       }
       thumb.appendChild(img);
 
-      // Deleted overlay
+      // Calque de suppression
       if (p.deleted) {
         const delOverlay = document.createElement('div');
         delOverlay.className = 'builder-deleted-overlay';

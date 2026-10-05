@@ -51,7 +51,7 @@ export class ComparisonUI {
     const navToolbar = this.modal.querySelector('#compareNavToolbar') as HTMLElement;
     if (navToolbar) navToolbar.style.display = 'none';
 
-    // 1. Upload Doc B
+    // 1. Téléversement du document B
     const formData = new FormData();
     formData.append('file', file);
 
@@ -71,10 +71,10 @@ export class ComparisonUI {
 
       this.setupNavToolbar();
 
-      // Load first page
+      // Charge la première page
       await this.goToPage(1);
 
-      // Auto scan remaining pages in background to show summary chips
+      // Analyse automatiquement en arrière-plan les pages restantes pour afficher les pastilles de synthèse
       if (this.totalPages > 1) {
         this.scanAllPages();
       }

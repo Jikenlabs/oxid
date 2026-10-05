@@ -59,7 +59,7 @@ impl DocumentConnector for S3Connector {
 
         let mut req = self.client.get(&url);
 
-        // Apply auth header if provided in SecurityContext or env
+        // Applique l'en-tête d'authentification si fourni dans le SecurityContext ou l'environnement
         if let Some(ref token) = ctx.auth_token {
             req = req.header(AUTHORIZATION, format!("Bearer {}", token));
         }

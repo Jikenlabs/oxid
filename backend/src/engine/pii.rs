@@ -8,7 +8,7 @@ use std::path::Path;
 pub struct PiiEngine;
 
 impl PiiEngine {
-    /// Scan all pages of a document for PII data
+    /// Analyse l'ensemble des pages d'un document pour détecter des données sensibles (PII / RGPD)
     pub fn scan_document(path: &Path, page_count: usize) -> Result<PiiScanResponse> {
         let mut items = Vec::new();
 
@@ -28,18 +28,18 @@ impl PiiEngine {
         })
     }
 
-    /// Scan text spans of a page to detect sensitive patterns
+    /// Analyse les segments de texte d'une page pour repérer des motifs sensibles
     pub fn scan_page_spans(page_num: usize, spans: &[TextSpan]) -> Vec<PiiItem> {
         let mut items = Vec::new();
 
-        // 1. Single span checks (Emails, single-word NIR, Phone, etc.)
+        // 1. Détection sur un segment unique (adresses e-mail, NIR sans espace, téléphones, etc.)
         for span in spans {
             let text = span.text.trim();
             if text.is_empty() {
                 continue;
             }
 
-            // Email check
+            // Vérification adresse électronique
             if Self::is_valid_email(text) {
                 items.push(PiiItem {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -54,7 +54,7 @@ impl PiiEngine {
                 });
             }
 
-            // Single span IBAN check
+            // Vérification IBAN sur segment unique
             let iban_clean = text.replace(' ', "").to_uppercase();
             if iban_clean.len() >= 15 && iban_clean.len() <= 34 && Self::is_valid_iban(&iban_clean) {
                 items.push(PiiItem {
@@ -71,7 +71,7 @@ impl PiiEngine {
             }
 
 
-            // Social Security check (NIR 13 or 15 digits)
+            // Vérification numéro de sécurité sociale (NIR à 13 ou 15 chiffres)
             let digits_only: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
             if (digits_only.len() == 13 || digits_only.len() == 15) && Self::is_valid_french_nir(&digits_only) {
                 items.push(PiiItem {
@@ -87,7 +87,7 @@ impl PiiEngine {
                 });
             }
 
-            // Credit card check (single span)
+            // Vérification carte bancaire (segment unique)
             if (digits_only.len() >= 13 && digits_only.len() <= 19) && Self::is_valid_luhn(&digits_only) {
                 items.push(PiiItem {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -102,7 +102,7 @@ impl PiiEngine {
                 });
             }
 
-            // Phone check (e.g., +33..., 06..., 07..., 10 digits)
+            // Vérification numéro de téléphone (ex. +33..., 06..., 07..., 10 chiffres)
             if Self::is_valid_phone(text) {
                 items.push(PiiItem {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -118,7 +118,7 @@ impl PiiEngine {
             }
         }
 
-        // 2. Sliding window check across multi-word spans (for IBAN and spaced Card Numbers)
+        // 2. Fenêtre glissante horizontale sur plusieurs segments consécutifs (IBAN et cartes bancaires avec espaces)
         let n = spans.len();
         for window_size in 2..=8 {
             if window_size > n {
@@ -126,7 +126,7 @@ impl PiiEngine {
             }
             for i in 0..=(n - window_size) {
                 let slice = &spans[i..i + window_size];
-                // Check if spans are reasonably on the same horizontal line
+                // Vérification de l'alignement sur une même ligne horizontale
                 let first_y = slice[0].y;
                 let same_line = slice.iter().all(|s| (s.y - first_y).abs() < 5.0);
                 if !same_line {
@@ -136,7 +136,7 @@ impl PiiEngine {
                 let combined_raw: String = slice.iter().map(|s| s.text.as_str()).collect::<Vec<_>>().join(" ");
                 let combined_clean: String = slice.iter().map(|s| s.text.as_str()).collect::<Vec<_>>().join("");
 
-                // Check IBAN
+                // Vérification IBAN multi-segments
                 let iban_clean: String = combined_clean.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_uppercase();
                 if iban_clean == combined_clean.to_uppercase() && iban_clean.len() >= 15 && iban_clean.len() <= 34 && Self::is_valid_iban(&iban_clean) {
                     let min_x = slice.iter().map(|s| s.x).fold(f64::INFINITY, f64::min);
@@ -144,8 +144,7 @@ impl PiiEngine {
                     let min_y = slice.iter().map(|s| s.y).fold(f64::INFINITY, f64::min);
                     let max_y = slice.iter().map(|s| s.y + s.height).fold(f64::NEG_INFINITY, f64::max);
 
-
-                    // Avoid duplicate sub-intervals
+                    // Évite l'insertion de sous-intervalles doublons
                     if !items.iter().any(|it| it.matched_text.replace(' ', "") == iban_clean) {
                         items.push(PiiItem {
                             id: uuid::Uuid::new_v4().to_string(),
@@ -161,7 +160,7 @@ impl PiiEngine {
                     }
                 }
 
-                // Check Spaced Credit Card
+                // Vérification carte bancaire avec espaces
                 let digits: String = combined_clean.chars().filter(|c| c.is_ascii_digit()).collect();
                 if (digits.len() >= 13 && digits.len() <= 19) && Self::is_valid_luhn(&digits) {
                     let min_x = slice.iter().map(|s| s.x).fold(f64::INFINITY, f64::min);
@@ -184,7 +183,7 @@ impl PiiEngine {
                     }
                 }
 
-                // Check Spaced French NIR (e.g., 1 85 12 75 108 042 12)
+                // Vérification NIR français avec espaces (ex. 1 85 12 75 108 042 12)
                 if (digits.len() == 13 || digits.len() == 15) && Self::is_valid_french_nir(&digits) {
                     let min_x = slice.iter().map(|s| s.x).fold(f64::INFINITY, f64::min);
                     let max_x = slice.iter().map(|s| s.x + s.width).fold(f64::NEG_INFINITY, f64::max);
@@ -211,7 +210,7 @@ impl PiiEngine {
         items
     }
 
-    /// Search full document text for a query across all pages
+    /// Recherche plein texte dans l'intégralité du document sur toutes les pages
     pub fn search_document(
         path: &Path,
         page_count: usize,
@@ -256,9 +255,9 @@ impl PiiEngine {
         })
     }
 
-    // --- Validation & Checksum Algorithms ---
+    // --- Algorithmes de validation et sommes de contrôle (Checksums) ---
 
-    /// Luhn algorithm for credit card number validation
+    /// Algorithme de Luhn pour la validation des numéros de carte bancaire.
     pub fn is_valid_luhn(number: &str) -> bool {
         if number.len() < 13 || number.len() > 19 {
             return false;
@@ -283,13 +282,13 @@ impl PiiEngine {
         sum % 10 == 0
     }
 
-    /// French Social Security (NIR) key verification: Key = 97 - (NIR % 97)
+    /// Vérification de la clé du numéro de sécurité sociale français (NIR) : Clé = 97 - (NIR % 97)
     pub fn is_valid_french_nir(nir_str: &str) -> bool {
         let first_char = match nir_str.chars().next() {
             Some(c) => c,
             None => return false,
         };
-        // 1 = male, 2 = female (standard)
+        // 1 = homme, 2 = femme (standard)
         if first_char != '1' && first_char != '2' {
             return false;
         }
@@ -302,21 +301,21 @@ impl PiiEngine {
                 return key_num == expected_key;
             }
         } else if nir_str.len() == 13 {
-            // Check basic structure if key not provided
+            // Vérifie la structure de base si la clé n'est pas fournie
             return nir_str.chars().all(|c| c.is_ascii_digit());
         }
 
         false
     }
 
-    /// ISO 7064 Modulo 97-10 check for IBAN validation
+    /// Vérification ISO 7064 Modulo 97-10 pour la validation IBAN.
     pub fn is_valid_iban(iban: &str) -> bool {
         let clean: String = iban.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
         if clean.len() < 15 || clean.len() > 34 {
             return false;
         }
 
-        // Country code (2 letters) + 2 check digits
+        // Code pays (2 lettres) + 2 chiffres de contrôle
         let chars: Vec<char> = clean.chars().collect();
         if !chars[0].is_ascii_alphabetic() || !chars[1].is_ascii_alphabetic() {
             return false;
@@ -325,11 +324,11 @@ impl PiiEngine {
             return false;
         }
 
-        // Move first 4 characters to the end
+        // Déplace les 4 premiers caractères à la fin
         let rearranged = format!("{}{}", &clean[4..], &clean[0..4]);
 
 
-        // Convert letters to numbers (A=10, B=11, ..., Z=35)
+        // Convertit les lettres en nombres (A=10, B=11, ..., Z=35)
         let mut numeric_string = String::with_capacity(rearranged.len() * 2);
         for c in rearranged.chars() {
             if c.is_ascii_digit() {
@@ -342,7 +341,7 @@ impl PiiEngine {
             }
         }
 
-        // Compute modulo 97 piecewise
+        // Calcule le modulo 97 par morceaux (pour éviter les dépassements d'entier)
         let mut remainder = 0;
         for chunk in numeric_string.as_bytes().chunks(7) {
             let chunk_str = match std::str::from_utf8(chunk) {
@@ -360,7 +359,7 @@ impl PiiEngine {
         remainder == 1
     }
 
-    /// Email syntax validation
+    /// Validation de la syntaxe d'adresse email.
     pub fn is_valid_email(text: &str) -> bool {
         if !text.contains('@') || !text.contains('.') {
             return false;
@@ -380,7 +379,7 @@ impl PiiEngine {
         ext.len() >= 2 && ext.chars().all(|c| c.is_ascii_alphabetic())
     }
 
-    /// Phone number detection
+    /// Détection et validation des numéros de téléphone.
     pub fn is_valid_phone(text: &str) -> bool {
         let clean = text.replace([' ', '.', '-', '(', ')'], "");
         if clean.starts_with('+') && clean.len() >= 10 && clean.len() <= 15 {
@@ -392,7 +391,7 @@ impl PiiEngine {
         false
     }
 
-    // --- Masking formatting helpers for UI display ---
+    // --- Fonctions utilitaires de masquage pour l'affichage UI ---
 
     pub fn mask_email(email: &str) -> String {
         let parts: Vec<&str> = email.split('@').collect();

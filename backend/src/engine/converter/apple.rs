@@ -24,7 +24,7 @@ impl AppleImageConverter {
 
         info!("Converting Apple/Mac format .{} to PDF rendition: {}", ext, input_path.display());
 
-        // 1. Try macOS native 'sips' command if running on macOS or available
+        // 1. Tente la commande native macOS 'sips' si disponible ou sur environnement macOS
         if let Ok(status) = Command::new("sips")
             .arg("-s")
             .arg("format")
@@ -39,18 +39,18 @@ impl AppleImageConverter {
             }
         }
 
-        // 2. Specific handler for ICNS (Apple Icon Image format) in pure Rust
+        // 2. Gestionnaire spécifique pour le format d'icônes ICNS en pur Rust
         if ext == "icns" {
             if let Ok(()) = Self::convert_icns_to_pdf(input_path, output_path) {
                 return Ok(());
             }
         }
 
-        // 3. For HEIC / HEIF / DNG / PICT: Convert to intermediate PNG/JPEG then embed in PDF
+        // 3. Pour HEIC / HEIF / DNG / PICT : conversion en PNG/JPEG intermédiaire puis intégration dans un PDF
         let temp_dir = tempfile::tempdir().context("Failed to create temporary directory for Apple image conversion")?;
         let temp_img = temp_dir.path().join("converted.png");
 
-        // Try sips (to png)
+        // Tente sips (vers PNG)
         let sips_ok = Command::new("sips")
             .arg("-s")
             .arg("format")
@@ -62,7 +62,7 @@ impl AppleImageConverter {
             .map(|s| s.success())
             .unwrap_or(false);
 
-        // Try heif-convert (for HEIC/HEIF)
+        // Tente heif-convert (pour HEIC/HEIF)
         let heif_ok = if !sips_ok && (ext == "heic" || ext == "heif") {
             Command::new("heif-convert")
                 .arg(input_path)
@@ -74,7 +74,7 @@ impl AppleImageConverter {
             false
         };
 
-        // Try gdk-pixbuf-thumbnailer (for HEIC/HEIF/Apple formats on Linux via heif-gdk-pixbuf)
+        // Tente gdk-pixbuf-thumbnailer (pour les formats HEIC/HEIF/Apple sous Linux via heif-gdk-pixbuf)
         let gdk_ok = if !sips_ok && !heif_ok {
             Command::new("gdk-pixbuf-thumbnailer")
                 .arg("-s")
@@ -88,7 +88,7 @@ impl AppleImageConverter {
             false
         };
 
-        // Try ffmpeg
+        // Tente ffmpeg
         let ffmpeg_ok = if !sips_ok && !heif_ok && !gdk_ok {
             Command::new("ffmpeg")
                 .arg("-y")
@@ -102,7 +102,7 @@ impl AppleImageConverter {
             false
         };
 
-        // Try ImageMagick 'convert'
+        // Tente ImageMagick 'convert'
         let convert_ok = if !sips_ok && !heif_ok && !gdk_ok && !ffmpeg_ok {
             Command::new("convert")
                 .arg(input_path)
@@ -126,7 +126,7 @@ impl AppleImageConverter {
         )
     }
 
-    /// Extract highest-resolution PNG embedded in Apple ICNS icon container
+    /// Extrait l'image PNG de plus haute résolution intégrée dans le conteneur d'icônes Apple ICNS.
     fn convert_icns_to_pdf(input_path: &Path, output_path: &Path) -> Result<()> {
         let bytes = fs::read(input_path).context("Failed to read ICNS file")?;
         if bytes.len() < 8 || &bytes[0..4] != b"icns" {
@@ -154,7 +154,7 @@ impl AppleImageConverter {
 
             let chunk_data = &bytes[offset + 8..offset + chunk_len];
 
-            // Check if chunk data is a PNG image (\x89PNG\r\n\x1a\n)
+            // Vérifie si le bloc de données est une image PNG (\x89PNG\r\n\x1a\n)
             if chunk_data.len() > 8 && &chunk_data[0..4] == b"\x89PNG" {
                 if chunk_data.len() > max_len {
                     max_len = chunk_data.len();
@@ -176,7 +176,7 @@ impl AppleImageConverter {
         bail!("No valid PNG icons found inside ICNS")
     }
 
-    /// Embed an image file as a dedicated single-page PDF document
+    /// Intègre un fichier image en tant que page unique d'un document PDF.
     pub fn embed_image_file_to_pdf(img_path: &Path, output_path: &Path) -> Result<()> {
         let dynamic_img = image::open(img_path).context("Failed to load converted image for PDF embedding")?;
         let rgba = dynamic_img.to_rgba8();
@@ -219,8 +219,8 @@ impl AppleImageConverter {
         };
         let resources_id = doc.add_object(res_dict);
 
-        // Standard point size (fit to natural aspect ratio)
-        let page_w = 595.0f64; // A4 width
+        // Dimensionnement en points standard (adaptation au ratio d'aspect naturel)
+        let page_w = 595.0f64; // Largeur A4
         let scale = page_w / (w as f64).max(1.0);
         let page_h = ((h as f64) * scale).clamp(10.0, 14400.0);
 

@@ -16,7 +16,7 @@ impl RedactionEngine {
         let pages = doc.get_pages();
 
 
-        // Group redactions by page number
+        // Regroupe les caviardages par numéro de page
         let mut by_page: std::collections::HashMap<usize, Vec<&RedactionItem>> =
             std::collections::HashMap::new();
         for item in &order.items {
@@ -25,7 +25,7 @@ impl RedactionEngine {
 
         for (page_num, items) in by_page {
             if let Some(&page_id) = pages.get(&(page_num as u32)) {
-                // Get page height for coordinate inversion (PDF origin is bottom-left)
+                // Récupère la hauteur de page pour l'inversion des coordonnées (l'origine PDF étant en bas à gauche)
                 let mut page_height = 842.0;
                 if let Ok(page_dict) = doc.get_object(page_id).and_then(|o| o.as_dict()) {
                     let box_obj = page_dict.get(b"CropBox").or_else(|_| page_dict.get(b"MediaBox"));
@@ -43,7 +43,7 @@ impl RedactionEngine {
                     }
                 }
 
-                // Build stream with black rectangle overlays and labels
+                // Construit le flux graphique avec rectangles noirs opaques et étiquettes textuelles
                 let mut stream_content = String::new();
                 for item in items {
                     let pdf_x = item.x;
@@ -59,13 +59,13 @@ impl RedactionEngine {
 
                     let escaped_label = crate::security::escape_pdf_str(label);
 
-                    // Draw solid black rectangle and white text label
+                    // Dessine le rectangle noir plein et l'étiquette de texte blanche
                     stream_content.push_str(&format!(
                         "\nq\n0 0 0 rg\n{:.2} {:.2} {:.2} {:.2} re\nf\n",
                         pdf_x, pdf_y, pdf_w, pdf_h
                     ));
 
-                    // If height is sufficient, draw centered white label
+                    // Si la hauteur est suffisante, dessine l'étiquette blanche centrée
                     if pdf_h >= 10.0 {
                         let text_y = pdf_y + (pdf_h / 2.0) - 3.0;
                         let text_x = pdf_x + 4.0;

@@ -33,14 +33,14 @@ impl ComparisonEngine {
                 (a, b)
             }
             (Ok(bytes_a), Err(_)) => {
-                // Page exists in A but removed in B -> B is pure white
+                // La page existe dans A mais a été supprimée dans B -> B est blanc pur
                 let a = image::load_from_memory(&bytes_a)?;
                 let (w, h) = a.dimensions();
                 let b = image::DynamicImage::ImageRgba8(ImageBuffer::from_pixel(w, h, Rgba([255, 255, 255, 255])));
                 (a, b)
             }
             (Err(_), Ok(bytes_b)) => {
-                // Page exists in B but added in B (didn't exist in A) -> A is pure white
+                // La page existe dans B mais a été ajoutée dans B (inexistante dans A) -> A est blanc pur
                 let b = image::load_from_memory(&bytes_b)?;
                 let (w, h) = b.dimensions();
                 let a = image::DynamicImage::ImageRgba8(ImageBuffer::from_pixel(w, h, Rgba([255, 255, 255, 255])));
@@ -82,14 +82,14 @@ impl ComparisonEngine {
                 if diff > 15 {
                     different_pixels += 1;
                     if lum_a < lum_b {
-                        // Present in A but removed in B -> RED
+                        // Présent dans A mais supprimé dans B -> ROUGE
                         diff_img.put_pixel(x, y, Rgba([230, 40, 40, 255]));
                     } else {
-                        // Added in B -> GREEN
+                        // Ajouté dans B -> VERT
                         diff_img.put_pixel(x, y, Rgba([40, 190, 60, 255]));
                     }
                 } else {
-                    // Unchanged: faded gray
+                    // Inchangé : gris estompé
                     let gray = ((lum_a as u16 + 200) / 2) as u8;
                     diff_img.put_pixel(x, y, Rgba([gray, gray, gray, 255]));
                 }

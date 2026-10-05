@@ -64,7 +64,7 @@ impl EmailConverter {
                     .unwrap_or_default()
             });
 
-        // Generate PDF
+        // Génération du document PDF
         let mut doc = Document::with_version("1.4");
         let pages_id = doc.new_object_id();
 
@@ -90,14 +90,14 @@ impl EmailConverter {
         let mut page_objects = Vec::new();
         let lines: Vec<&str> = body_text.lines().collect();
 
-        // Page 1: Header + Start of body
+        // Page 1 : En-tête + début du corps du message
         let mut stream_p1 = String::new();
 
-        // Draw light gray box for email header
+        // Dessine un encadré gris clair pour l'en-tête du courriel
         stream_p1.push_str("q\n0.95 0.95 0.95 rg\n40 700 515 110 re\nf\nQ\n");
 
         stream_p1.push_str("BT\n");
-        // Header items
+        // Éléments de l'en-tête
         let clean = |s: &str| {
             crate::security::escape_pdf_str(s)
         };
@@ -129,7 +129,7 @@ impl EmailConverter {
             stream_p1.push_str(&format!("/F1 9 Tf\n1 0 0 1 100 {:.2} Tm\n({}) Tj\n", hy, clean(&att_names)));
         }
 
-        // Body content on page 1 (starts at y = 670)
+        // Corps du message sur la page 1 (débute à y = 670)
         let mut by = 670.0;
         stream_p1.push_str("/F1 10 Tf\n");
 
@@ -157,7 +157,7 @@ impl EmailConverter {
         });
         page_objects.push(p1_id.into());
 
-        // Subsequent pages if body continues
+        // Pages suivantes si le corps du texte se prolonge
         while line_idx < lines.len() {
             let mut stream_pn = String::new();
             stream_pn.push_str("BT\n/F1 10 Tf\n");

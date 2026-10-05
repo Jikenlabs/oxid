@@ -45,7 +45,7 @@ export class AnnotationLayerManager {
     this.onAnnotationDeleted = onAnnotationDeleted;
     this.onAnnotationUpdated = onAnnotationUpdated;
 
-    // Container itself never blocks pointer events so text layer underneath remains selectable
+    // Le conteneur ne bloque jamais les événements pointeur afin que la couche de texte sous-jacente reste sélectionnable
     this.container.style.pointerEvents = 'none';
 
     this.setupEvents();
@@ -111,7 +111,7 @@ export class AnnotationLayerManager {
 
   private setupEvents() {
     this.pageCard.addEventListener('mousedown', (e: MouseEvent) => {
-      // Don't trigger new action if clicking inside an existing popover
+      // Ne déclenche pas de nouvelle action lors d'un clic à l'intérieur d'un popover existant
       if ((e.target as HTMLElement).closest('.annot-popover-card') || (e.target as HTMLElement).closest('.annot-delete-pill')) {
         return;
       }
@@ -124,7 +124,7 @@ export class AnnotationLayerManager {
       this.startY = e.clientY - cardRect.top;
 
       if (this.currentTool === 'note') {
-        // Handled on click / mouseup to avoid accidental drags
+        // Géré lors du clic / mouseup pour éviter les glissements accidentels
         return;
       }
 
@@ -159,14 +159,14 @@ export class AnnotationLayerManager {
     window.addEventListener('mouseup', (e: MouseEvent) => {
       if (this.currentTool === 'note') {
         const cardRect = this.pageCard.getBoundingClientRect();
-        // Ensure the click was actually inside this page
+        // Vérifie que le clic a bien eu lieu à l'intérieur de cette page
         if (
           e.clientX >= cardRect.left &&
           e.clientX <= cardRect.right &&
           e.clientY >= cardRect.top &&
           e.clientY <= cardRect.bottom
         ) {
-          // If not clicked on existing pin
+          // S'il n'y a pas eu de clic sur une épingle existante
           if (!(e.target as HTMLElement).closest('.annot-note-pin') && !(e.target as HTMLElement).closest('.annot-popover-card')) {
             const clickX = e.clientX - cardRect.left;
             const clickY = e.clientY - cardRect.top;
@@ -184,7 +184,7 @@ export class AnnotationLayerManager {
         this.previewBox = null;
       }
 
-      // Check if text was selected in DOM
+      // Vérifie si du texte a été sélectionné dans le DOM
       const selection = window.getSelection();
       const selectedText = selection ? selection.toString().trim() : '';
 
@@ -195,7 +195,7 @@ export class AnnotationLayerManager {
         return;
       }
 
-      // If no text was selected, check if user dragged a rectangular box
+      // Si aucun texte n'est sélectionné, vérifie si l'utilisateur a tracé une zone rectangulaire
       const cardRect = this.pageCard.getBoundingClientRect();
       const currX = Math.max(0, Math.min(cardRect.width, e.clientX - cardRect.left));
       const currY = Math.max(0, Math.min(cardRect.height, e.clientY - cardRect.top));
@@ -232,7 +232,7 @@ export class AnnotationLayerManager {
     const rawRects = Array.from(range.getClientRects());
     const created: ClientAnnotation[] = [];
 
-    // Filter rects inside this page card and convert to page point coordinates
+    // Filtre les rectangles situés à l'intérieur de la page et convertit en coordonnées de points PDF
     const pageRects: { x: number; y: number; width: number; height: number }[] = [];
 
     for (const r of rawRects) {
@@ -249,7 +249,7 @@ export class AnnotationLayerManager {
       pageRects.push({ x: rx, y: ry, width: rw, height: rh });
     }
 
-    // Merge rects on the same line to avoid overlapping fragmented boxes
+    // Fusionne les rectangles sur la même ligne pour éviter la fragmentation et les chevauchements
     const mergedRects = this.mergeLineRects(pageRects);
 
     for (const rect of mergedRects) {
@@ -283,7 +283,7 @@ export class AnnotationLayerManager {
   private mergeLineRects(rects: { x: number; y: number; width: number; height: number }[]) {
     if (rects.length <= 1) return rects;
 
-    // Sort by y then x
+    // Tri par ordonnée y puis par abscisse x
     rects.sort((a, b) => (Math.abs(a.y - b.y) < 4 ? a.x - b.x : a.y - b.y));
 
     const merged: { x: number; y: number; width: number; height: number }[] = [];
@@ -463,7 +463,7 @@ export class AnnotationLayerManager {
     this.pageCard.appendChild(pill);
     this.activePopover = pill;
 
-    // Auto-remove pill on outside click
+    // Ferme automatiquement la pastille lors d'un clic à l'extérieur
     const outsideListener = (ev: MouseEvent) => {
       if (!pill.contains(ev.target as Node)) {
         pill.remove();

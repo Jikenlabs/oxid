@@ -30,7 +30,7 @@ body, .oxid-viewer-root {
   position: relative;
 }
 
-/* Unified Single-Line Top Bar */
+/* Barre d'outils supérieure unifiée sur une seule ligne */
 .toolbar,
 .toolbar-unified,
 .app-header {
@@ -170,7 +170,7 @@ body, .oxid-viewer-root {
   justify-content: center;
 }
 
-/* Toolbar Dropdown Menus */
+/* Menus déroulants de la barre d'outils */
 .toolbar-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -273,7 +273,7 @@ body, .oxid-viewer-root {
   letter-spacing: 0.04em;
 }
 
-/* Main Area */
+/* Zone principale */
 .main-container {
   display: flex;
   flex: 1;
@@ -281,7 +281,7 @@ body, .oxid-viewer-root {
   position: relative;
 }
 
-/* Activity Bar (VSCode Style) */
+/* Volet d'activités (style VSCode) */
 .activity-bar {
   width: 50px;
   flex: 0 0 50px;
@@ -362,7 +362,7 @@ body, .oxid-viewer-root {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-/* Sidebar Panel */
+/* Panneau latéral rétractable */
 .sidebar,
 .sidebar-panel {
   width: 280px;
@@ -425,7 +425,7 @@ body, .oxid-viewer-root {
   color: var(--text);
 }
 
-/* Legacy alias support */
+/* Prise en charge des alias hérités */
 .sidebar-tabs {
   display: none;
 }
@@ -535,7 +535,7 @@ body, .oxid-viewer-root {
   align-items: center;
 }
 
-/* Document Viewport */
+/* Fenêtre de visualisation du document (Viewport) */
 .viewport {
   flex: 1;
   background-color: var(--paper-bg);
@@ -557,7 +557,7 @@ body, .oxid-viewer-root {
   width: 100% !important;
 }
 
-/* Two-Page Book Mode (Double page reliée) */
+/* Mode livre double page (Double page reliée) */
 .viewport.layout-double #pagesContainer {
   display: flex !important;
   flex-direction: row !important;
@@ -570,15 +570,15 @@ body, .oxid-viewer-root {
   max-width: 100% !important;
 }
 
-/* Cover page (page 1): centered if standalone, or pairs */
+/* Page de couverture (page 1) : centrée si isolée, ou en paires */
 .viewport.layout-double .page-container {
   margin: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
-/* Left page in pair (odd index 1, 3, 5... or even page numbers 2, 4, 6...) */
-/* Pair: Page 1 (left) + Page 2 (right), Page 3 (left) + Page 4 (right) */
+/* Page de gauche dans la paire (index impair 1, 3, 5... ou numéros pairs 2, 4, 6...) */
+/* Paire : Page 1 (gauche) + Page 2 (droite), Page 3 (gauche) + Page 4 (droite) */
 .viewport.layout-double .page-container:nth-child(odd) {
   border-top-left-radius: 4px !important;
   border-bottom-left-radius: 4px !important;
@@ -586,7 +586,7 @@ body, .oxid-viewer-root {
   box-shadow: -8px 8px 24px -4px rgba(0, 0, 0, 0.45), inset -12px 0 16px -8px rgba(0, 0, 0, 0.22) !important;
 }
 
-/* Right page in pair (even index: Page 2, 4, 6...) */
+/* Page de droite dans la paire (index pair : Page 2, 4, 6...) */
 .viewport.layout-double .page-container:nth-child(even) {
   border-top-right-radius: 4px !important;
   border-bottom-right-radius: 4px !important;
@@ -595,7 +595,7 @@ body, .oxid-viewer-root {
   margin-right: 0 !important;
 }
 
-/* If last page is alone (odd total of pages), round its right side too */
+/* Si la dernière page est isolée (nombre total impair de pages), arrondir également son côté droit */
 .viewport.layout-double .page-container:nth-child(odd):last-child {
   border-top-right-radius: 4px !important;
   border-bottom-right-radius: 4px !important;
@@ -603,7 +603,7 @@ body, .oxid-viewer-root {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45) !important;
 }
 
-/* Scroll Page Mode (Page par page / Défilement discontinu) */
+/* Mode page par page (Défilement discontinu) */
 .viewport.scroll-page {
   overflow: auto;
   justify-content: center;
@@ -636,7 +636,7 @@ body, .oxid-viewer-root {
   display: none !important;
 }
 
-/* Explicit left/right styles for double page mode to preserve book binding look even when elements are filtered */
+/* Styles explicites gauche/droite pour le mode double page préservant l'aspect de reliure même en cas de filtrage */
 .viewport.scroll-page.layout-double .page-container.book-page-left {
   border-top-left-radius: 4px !important;
   border-bottom-left-radius: 4px !important;
@@ -663,7 +663,7 @@ body, .oxid-viewer-root {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45) !important;
 }
 
-/* Floating Magazine Turn-Page Arrows (Only displayed in paginated / page-by-page mode) */
+/* Flèches flottantes pour tourner les pages en mode magazine (affichées uniquement en mode paginé / page par page) */
 .book-nav-btn {
   display: none;
   position: absolute;
@@ -713,7 +713,7 @@ body, .oxid-viewer-root {
   pointer-events: none;
 }
 
-/* Enhanced Magazine Fullscreen */
+/* Mode plein écran optimisé pour magazine */
 .oxid-viewer-root:fullscreen .viewport.layout-double {
   padding: 0;
   display: flex;
@@ -726,7 +726,7 @@ body, .oxid-viewer-root {
   margin: auto;
 }
 
-/* Grid Layout (Planche contact) */
+/* Disposition en grille (Planche contact) */
 .viewport.layout-grid #pagesContainer {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
@@ -776,7 +776,7 @@ body, .oxid-viewer-root {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-/* Fullscreen mode */
+/* Mode plein écran */
 .oxid-viewer-root:fullscreen {
   width: 100vw !important;
   height: 100vh !important;
@@ -787,7 +787,7 @@ body, .oxid-viewer-root {
   padding: 20px 10px;
 }
 
-/* Page Card Container */
+/* Conteneur de carte de page */
 .page-container {
   background: white;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
@@ -803,7 +803,7 @@ body, .oxid-viewer-root {
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Inner Page Content that rotates inside container */
+/* Contenu interne de la page avec rotation à l'intérieur du conteneur */
 .page-content {
   position: absolute;
   top: 50%;
@@ -821,7 +821,7 @@ body, .oxid-viewer-root {
   align-items: center;
 }
 
-/* When sideways (90deg/270deg), inner content swaps width & height using container query size */
+/* En orientation latérale (90°/270°), permuter la largeur et la hauteur du contenu interne via container queries */
 .page-container.rotated-sideways .page-content {
   width: 100cqh;
   height: 100cqw;
@@ -837,7 +837,7 @@ body, .oxid-viewer-root {
   -webkit-user-select: none;
 }
 
-/* Vector Text Layer */
+/* Calque de texte vectoriel */
 .text-layer {
   position: absolute;
   top: 0;
@@ -872,7 +872,7 @@ body, .oxid-viewer-root {
   border-radius: 2px;
 }
 
-/* Annotation Layer */
+/* Calque d'annotations */
 .annotation-layer {
   position: absolute;
   top: 0;
@@ -941,7 +941,7 @@ body, .oxid-viewer-root {
   background-color: #d97706;
 }
 
-/* Dragging Previews */
+/* Prévisualisations de glisser-déposer */
 .annot-preview-highlight {
   position: absolute;
   background-color: rgba(250, 204, 21, 0.35);
@@ -958,7 +958,7 @@ body, .oxid-viewer-root {
   z-index: 20;
 }
 
-/* Inline Note Popover Card */
+/* Carte contextuelle de note intégrée (Popover) */
 .annot-popover-card {
   position: absolute;
   width: 250px;
@@ -1074,7 +1074,7 @@ body, .oxid-viewer-root {
   opacity: 0.9;
 }
 
-/* Small Delete Pill for Highlights & Redactions */
+/* Pastille de suppression rapide pour surlignages et biffures */
 .annot-delete-pill {
   position: absolute;
   background: #1f2937;
@@ -1097,7 +1097,7 @@ body, .oxid-viewer-root {
   transform: scale(1.05);
 }
 
-/* Selection Floating Toolbar */
+/* Barre d'outils flottante de sélection */
 .selection-floating-toolbar {
   position: fixed;
   background: #1e293b;
@@ -1132,7 +1132,7 @@ body, .oxid-viewer-root {
 }
 
 
-/* Modals */
+/* Fenêtres modales */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -1186,7 +1186,7 @@ body, .oxid-viewer-root {
   gap: 10px;
 }
 
-/* Builder Grid */
+/* Grille de composition de documents (Builder) */
 .builder-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -1319,7 +1319,7 @@ body, .oxid-viewer-root {
 }
 
 
-/* Search bar */
+/* Barre de recherche */
 .search-overlay {
   position: absolute;
   top: 16px;
@@ -1355,7 +1355,7 @@ body, .oxid-viewer-root {
   outline: 2px solid #ea580c !important;
 }
 
-/* PII / RGPD list styling */
+/* Styles de la liste de détection PII / RGPD */
 .pii-item-row {
   display: flex;
   align-items: center;
@@ -1387,7 +1387,7 @@ body, .oxid-viewer-root {
 .pii-badge-email { background: #064e3b; color: #6ee7b7; }
 .pii-badge-phone { background: #713f12; color: #fde047; }
 
-/* Empty state */
+/* État vide (Empty state) */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1398,7 +1398,7 @@ body, .oxid-viewer-root {
   gap: 16px;
 }
 
-/* Drag & Drop Visual Overlay */
+/* Calque visuel de glisser-déposer */
 .drag-drop-overlay {
   position: absolute;
   top: 0;
@@ -1457,7 +1457,7 @@ body, .oxid-viewer-root {
   to { transform: translateY(4px); }
 }
 
-/* Loading & Conversion Progress Overlay */
+/* Calque de progression de chargement et conversion */
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -1513,7 +1513,7 @@ body, .oxid-viewer-root {
   margin: 0;
 }
 
-/* AcroForm Interactive Forms Overlay */
+/* Calque de formulaires interactifs AcroForm */
 .form-layer {
   position: absolute;
   top: 0;
@@ -1607,10 +1607,10 @@ body, .oxid-viewer-root {
 }
 
 /* ==========================================================================
-   Zen Mode (Auto-hide Top Toolbar and Left Sidebar, Reveal on Hover)
+   Mode Zen (Masquage automatique de la barre supérieure et du volet latéral, réapparition au survol)
    ========================================================================== */
 
-/* Top Toolbar in Zen Mode */
+/* Barre d'outils supérieure en mode Zen */
 .oxid-viewer-root.zen-mode .toolbar-unified {
   position: absolute;
   top: 0;
@@ -1624,7 +1624,7 @@ body, .oxid-viewer-root {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
 }
 
-/* Hover reveal area at the very top of the screen */
+/* Zone de déclenchement au survol tout en haut de l'écran */
 .oxid-viewer-root.zen-mode .toolbar-unified::after {
   content: '';
   position: absolute;
@@ -1636,14 +1636,14 @@ body, .oxid-viewer-root {
   background: transparent;
 }
 
-/* Reveal Top Toolbar when hovering the toolbar or its top trigger zone */
+/* Révéler la barre d'outils supérieure lors du survol de celle-ci ou de sa zone supérieure */
 .oxid-viewer-root.zen-mode .toolbar-unified:hover {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
 }
 
-/* Left Sidebar & Activity Bar in Zen Mode */
+/* Barre latérale et volet d'activités en mode Zen */
 .oxid-viewer-root.zen-mode .activity-bar {
   position: absolute;
   top: 0;
@@ -1657,7 +1657,7 @@ body, .oxid-viewer-root {
   box-shadow: 5px 0 25px -5px rgba(0, 0, 0, 0.6);
 }
 
-/* Hover reveal area at the left edge of the screen */
+/* Zone de déclenchement au survol sur le bord gauche de l'écran */
 .oxid-viewer-root.zen-mode .activity-bar::after {
   content: '';
   position: absolute;
@@ -1669,14 +1669,14 @@ body, .oxid-viewer-root {
   background: transparent;
 }
 
-/* Reveal Activity Bar on hover */
+/* Révéler le volet d'activités au survol */
 .oxid-viewer-root.zen-mode .activity-bar:hover {
   transform: translateX(0);
   opacity: 1;
   pointer-events: auto;
 }
 
-/* Sidebar panel in Zen Mode */
+/* Panneau latéral en mode Zen */
 .oxid-viewer-root.zen-mode .sidebar-panel {
   position: absolute;
   top: 0;
@@ -1687,7 +1687,7 @@ body, .oxid-viewer-root {
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
 }
 
-/* If sidebar panel was open, hide it with activity bar unless hovered */
+/* Si le panneau latéral était ouvert, le masquer avec le volet d'activités sauf en cas de survol */
 .oxid-viewer-root.zen-mode:not(:has(.activity-bar:hover)):not(:has(.sidebar-panel:hover)) .sidebar-panel:not(.collapsed) {
   transform: translateX(-150%);
   opacity: 0;
@@ -1701,7 +1701,7 @@ body, .oxid-viewer-root {
   pointer-events: auto;
 }
 
-/* Viewport expands to fill 100% of available screen in Zen Mode */
+/* La zone de visualisation s'étend à 100% de l'écran disponible en mode Zen */
 .oxid-viewer-root.zen-mode .main-container {
   width: 100%;
   height: 100%;
@@ -1712,14 +1712,14 @@ body, .oxid-viewer-root {
   height: 100%;
 }
 
-/* Active indicator on Zen Mode button */
+/* Indicateur d'activation sur le bouton de mode Zen */
 #btnToggleZenMode.active {
   background-color: var(--accent) !important;
   color: #ffffff !important;
 }
 
 /* ==========================================================================
-   CAD / DAO Technical Layers Panel
+   Panneau des calques techniques CAO / DAO
    ========================================================================== */
 .cad-panel {
   display: flex;
@@ -1830,7 +1830,7 @@ body, .oxid-viewer-root {
 }
 
 /* ==========================================================================
-   DICOM Medical PACS & Contrast Windowing (HU)
+   PACS médical DICOM et fenêtrage de contraste (HU)
    ========================================================================== */
 .dicom-panel {
   display: flex;
@@ -1945,7 +1945,7 @@ body, .oxid-viewer-root {
   color: #10b981;
 }
 
-/* PACS Medical Corner HUD Overlay on Document Page */
+/* Affichage tête haute (HUD) médical PACS dans les coins de la page */
 .pacs-overlay {
   position: absolute;
   top: 0;
@@ -1987,7 +1987,7 @@ body, .oxid-viewer-root {
   align-items: flex-end;
 }
 
-/* DICOM PACS Cine Mode: pure black background, eliminating white flashes between frames */
+/* Mode ciné PACS DICOM : arrière-plan noir pur éliminant les scintillements blancs entre les vues */
 .oxid-viewer-root.dicom-mode,
 .oxid-viewer-root.dicom-mode .viewport,
 .oxid-viewer-root.dicom-mode .page-container,
@@ -2008,7 +2008,7 @@ body, .oxid-viewer-root {
   background: #000000 !important;
 }
 
-/* Cine loop play button active state */
+/* État actif du bouton de lecture de boucle ciné */
 .btn-cine-playing {
   color: #10b981 !important;
   background: rgba(16, 185, 129, 0.15) !important;
@@ -2016,7 +2016,7 @@ body, .oxid-viewer-root {
 }
 
 /* ==========================================================================
-   Integrated Video Player (MP4, WebM, MOV, AVI)
+   Lecteur vidéo intégré (MP4, WebM, MOV, AVI)
    ========================================================================== */
 .video-viewer-wrapper {
   display: flex;
@@ -2049,7 +2049,7 @@ body, .oxid-viewer-root {
   display: block;
 }
 
-/* Fullscreen Mode: occupy the complete monitor screen with zero restriction */
+/* Mode plein écran : occupation intégrale de l'écran sans contrainte */
 .video-container:fullscreen,
 .video-container:-webkit-full-screen {
   width: 100vw !important;

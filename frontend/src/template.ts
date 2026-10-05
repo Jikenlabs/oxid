@@ -1,8 +1,8 @@
 export const VIEWER_TEMPLATE = `
   <div class="oxid-viewer-root">
-    <!-- Unified Single-Line Top Bar -->
+    <!-- Barre d'outils supérieure unifiée en ligne unique -->
     <header class="toolbar toolbar-unified">
-      <!-- Left Group: Logo, Sidebar Toggle, Doc Title, Page Navigation, Zoom, Rotate, Layout -->
+      <!-- Groupe gauche : Logo, bascule panneau latéral, titre, navigation, zoom, rotation, disposition -->
       <div class="tool-group">
         <span class="logo-badge">Oxid</span>
         <button class="btn btn-icon-only" id="btnToggleSidebar" title="Afficher/masquer panneau latéral (Ctrl+B)">
@@ -15,7 +15,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Page Nav -->
+        <!-- Navigation entre les pages -->
         <button class="btn btn-icon-only" id="btnPrevPage" title="Page précédente (Flèche Gauche ou Haut)">◀</button>
         <input type="number" class="page-input" id="pageNumberInput" value="1" min="1">
         <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">/ <span id="pageCountLabel">1</span></span>
@@ -23,7 +23,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Zoom -->
+        <!-- Contrôles de zoom -->
         <button class="btn btn-icon-only" id="btnZoomOut" title="Zoom arrière">−</button>
         <span id="zoomLevelLabel" style="font-size: 12px; min-width: 38px; text-align: center;">100%</span>
         <button class="btn btn-icon-only" id="btnZoomIn" title="Zoom avant">+</button>
@@ -32,7 +32,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Rotate Group with Sub-menu -->
+        <!-- Groupe de rotation avec sous-menu -->
         <div class="rotate-group" id="rotateGroup" style="position: relative; display: flex; align-items: center; gap: 2px;">
           <button class="btn btn-icon-only" id="btnRotateCcw" title="Rotation 90° gauche (Tout le document)">↺</button>
           <button class="btn btn-icon-only" id="btnRotateCw" title="Rotation 90° droite (Tout le document)">↻</button>
@@ -40,7 +40,7 @@ export const VIEWER_TEMPLATE = `
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events: none;"><path d="m6 9 6 6 6-6"/></svg>
           </button>
 
-          <!-- Rotate Sub-Menu -->
+          <!-- Sous-menu de rotation -->
           <div class="toolbar-dropdown-menu" id="rotateMenu" style="display: none;">
             <div class="dropdown-header">Portée par défaut</div>
             <button class="dropdown-item active" id="menuOptRotateAll" type="button">
@@ -68,7 +68,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Layout & Fullscreen -->
+        <!-- Disposition & Plein écran -->
         <button class="btn btn-icon-only active" id="btnLayoutSingle" title="Mode page unique">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
         </button>
@@ -81,7 +81,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Scroll Modes: Continu vs Page par page -->
+        <!-- Modes de défilement : Continu vs Page par page -->
         <button class="btn btn-icon-only active" id="btnScrollContinuous" title="Défilement continu (glisser de page en page)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7l-5-5-5 5M17 17l-5 5-5-5"/></svg>
         </button>
@@ -99,9 +99,9 @@ export const VIEWER_TEMPLATE = `
         </button>
       </div>
 
-      <!-- Right Group: Interactive Tools, Search/PII/Sign/Builder/Compare/Forms, and Document File Actions -->
+      <!-- Groupe droit : Outils interactifs, Recherche/PII/Sign/Builder/Compare/Forms et Actions document -->
       <div class="tool-group">
-        <!-- Interactive Tools -->
+        <!-- Outils interactifs -->
         <button class="btn active" id="toolSelect" title="Outil curseur / sélection">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7 18 3-7 7-3L3 3z"/></svg>
           <span class="btn-text">Curseur</span>
@@ -147,7 +147,7 @@ export const VIEWER_TEMPLATE = `
           <span class="btn-text">Enregistrer</span>
         </button>
 
-        <!-- DICOM Cine Loop Player (visible when multi-frame DICOM is active) -->
+        <!-- Lecteur boucle cinématographique DICOM (visible lorsqu'un fichier DICOM multi-images est actif) -->
         <div id="dicomCineGroup" style="display: none; align-items: center; gap: 4px; margin-right: 4px;">
           <button class="btn btn-icon" id="btnDicomCinePlay" type="button" title="Lecture boucle cinématographique (Ciné-Run) [Espace]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" id="dicomCinePlayIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -155,7 +155,7 @@ export const VIEWER_TEMPLATE = `
           <span style="font-size: 11px; color: var(--text-muted); font-family: monospace; user-select: none;" id="dicomCineFps">15 fps</span>
         </div>
 
-        <!-- DICOM Contrast / Windowing Controls (visible when DICOM file is active) -->
+        <!-- Contrôles de contraste / fenêtrage DICOM (visible lorsqu'un fichier DICOM est actif) -->
         <div class="dropdown-container" id="dicomControlsGroup" style="position: relative; display: none; align-items: center;">
           <button class="btn btn-icon-with-text" id="btnDicomPresets" type="button" title="Préréglages médicaux de contraste (Niveaux Hounsfield)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
@@ -194,7 +194,7 @@ export const VIEWER_TEMPLATE = `
 
         <div class="divider"></div>
 
-        <!-- Document File Actions -->
+        <!-- Actions sur les fichiers et documents -->
         <input type="file" id="fileUploadInput" style="display: none" accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.bmp,.gif,.svg,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.odg,.vsd,.vsdx,.eml,.msg,.txt,.csv,.tsv,.json,.xml,.md,.dxf,.dwg,.dcm,.dicom">
         <button class="btn btn-primary" id="btnUploadDoc" title="Ouvrir un document">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -209,9 +209,9 @@ export const VIEWER_TEMPLATE = `
       </div>
     </header>
 
-    <!-- Main Container -->
+    <!-- Conteneur principal -->
     <div class="main-container">
-      <!-- Activity Bar (VSCode Style) -->
+      <!-- Barre d'activité (style VSCode) -->
       <nav class="activity-bar" id="activityBar" aria-label="Volet d'activités">
         <div class="activity-bar-top">
           <button class="activity-item sidebar-tab active" data-tab="thumbnails" title="Vignettes (Ctrl+1)">
@@ -248,7 +248,7 @@ export const VIEWER_TEMPLATE = `
         </div>
       </nav>
 
-      <!-- Sidebar Panel (Collapsible) -->
+      <!-- Panneau latéral repliable -->
       <aside class="sidebar sidebar-panel" id="appSidebar">
         <div class="sidebar-panel-header">
           <span class="sidebar-panel-title" id="sidebarPanelTitle">VIGNETTES</span>
@@ -257,21 +257,21 @@ export const VIEWER_TEMPLATE = `
           </button>
         </div>
         <div class="sidebar-content" id="sidebarContent">
-          <!-- Dynamically populated -->
+          <!-- Contenu alimenté dynamiquement -->
         </div>
       </aside>
 
-      <!-- Document Viewport -->
+      <!-- Zone d'affichage du document (Viewport) -->
       <main class="viewport" id="documentViewport">
         <div class="empty-state" id="emptyState">
           <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <p>Glissez un document PDF/Image ou cliquez sur "Ouvrir document"</p>
         </div>
         <div id="pagesContainer" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-          <!-- Pages loaded here -->
+          <!-- Pages chargées ici -->
         </div>
 
-        <!-- Book Mode Magazine Navigation Flips -->
+        <!-- Contrôles de défilement magazine en mode livre -->
         <button class="book-nav-btn book-nav-prev" id="btnBookPrevSpread" title="Page précédente (Flèche gauche)">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
@@ -280,7 +280,7 @@ export const VIEWER_TEMPLATE = `
         </button>
       </main>
 
-      <!-- Search Overlay -->
+      <!-- Fenêtre de recherche superposée -->
       <div class="search-overlay" id="searchOverlay" style="display: none;">
         <input type="text" class="search-input" id="searchInput" placeholder="Rechercher...">
         <span id="searchCount" style="font-size: 12px; color: var(--text-muted);">0/0</span>
@@ -290,7 +290,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Document Builder Modal -->
+    <!-- Boîte modale de l'assembleur de documents -->
     <div class="modal-backdrop" id="builderModal" style="display: none;">
       <div class="modal-card">
         <div class="modal-header">
@@ -306,7 +306,7 @@ export const VIEWER_TEMPLATE = `
             <input type="text" id="builderWatermarkText" class="search-input" placeholder="Ex: CONFIDENTIEL" style="flex: 1;">
           </div>
           <div class="builder-grid" id="builderGrid">
-            <!-- Page cards -->
+            <!-- Cartes des pages -->
           </div>
         </div>
         <div class="modal-footer">
@@ -316,7 +316,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Comparison Modal -->
+    <!-- Boîte modale de comparaison -->
     <div class="modal-backdrop" id="compareModal" style="display: none;">
       <div class="modal-card" style="max-width: 980px; width: 95%;">
         <div class="modal-header">
@@ -333,7 +333,7 @@ export const VIEWER_TEMPLATE = `
             <span id="compareStats" style="font-size: 13px; font-weight: 600;"></span>
           </div>
 
-          <!-- Comparison Navigation Toolbar (Page per page + scan all) -->
+          <!-- Barre de navigation de comparaison (Page par page + scan complet) -->
           <div id="compareNavToolbar" style="display: none; margin-bottom: 12px; align-items: center; justify-content: space-between; background: var(--bg-primary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap; gap: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <button class="btn" id="btnComparePrevPage" title="Page précédente">◀ Précédente</button>
@@ -341,13 +341,13 @@ export const VIEWER_TEMPLATE = `
               <button class="btn" id="btnCompareNextPage" title="Page suivante">Suivante ▶</button>
             </div>
 
-            <!-- Mode Toggle: Visual Diff vs Semantic Text Diff -->
+            <!-- Bascule de mode : Diff visuel vs Diff textuel sémantique -->
             <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
               <button class="btn active" id="btnModeVisualDiff" style="font-size: 11px; padding: 4px 8px;">🖼️ Diff Visuel</button>
               <button class="btn" id="btnModeTextDiff" style="font-size: 11px; padding: 4px 8px;">📝 Diff Sémantique (Texte)</button>
             </div>
 
-            <!-- Quick Page Chips -->
+            <!-- Pastilles d'accès rapide aux pages -->
             <div id="comparePageChips" style="display: flex; gap: 6px; align-items: center; overflow-x: auto; max-width: 450px; padding: 2px 0;">
             </div>
 
@@ -372,7 +372,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Redaction Confirm Modal -->
+    <!-- Boîte modale de confirmation de biffure/caviardage -->
     <div class="modal-backdrop" id="redactModal" style="display: none;">
       <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
@@ -400,7 +400,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- PII / RGPD Scan Assistant Modal -->
+    <!-- Boîte modale de l'assistant de détection PII / RGPD -->
     <div class="modal-backdrop" id="piiModal" style="display: none;">
       <div class="modal-card" style="max-width: 680px;">
         <div class="modal-header">
@@ -421,7 +421,7 @@ export const VIEWER_TEMPLATE = `
             ✅ Aucune donnée sensible ou non-conforme détectée dans ce document.
           </div>
           <div id="piiScanResults" style="max-height: 320px; overflow-y: auto; display: none;">
-            <!-- List of items with checkboxes -->
+            <!-- Liste des éléments avec cases à cocher -->
           </div>
         </div>
         <div class="modal-footer" style="justify-content: space-between;">
@@ -434,7 +434,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Digital Signature & Visual Stamp Modal -->
+    <!-- Boîte modale de signature numérique & tampon visuel -->
     <div class="modal-backdrop" id="signatureModal" style="display: none;">
       <div class="modal-card" style="max-width: 620px;">
         <div class="modal-header">
@@ -450,7 +450,7 @@ export const VIEWER_TEMPLATE = `
             <button class="btn" id="tabSigHandwritten" style="flex: 1;">✍️ Signature Manuscrite</button>
           </div>
 
-          <!-- Tab Content 1: Official Certified Stamp -->
+          <!-- Contenu onglet 1 : Tampon officiel certifié -->
           <div id="sigStampContent">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
               <div>
@@ -468,7 +468,7 @@ export const VIEWER_TEMPLATE = `
             </div>
           </div>
 
-          <!-- Tab Content 2: Handwritten Drawing -->
+          <!-- Contenu onglet 2 : Tracé manuscrit -->
           <div id="sigHandwrittenContent" style="display: none; margin-bottom: 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Tracez votre signature à la souris ou au stylet :</label>
@@ -477,7 +477,7 @@ export const VIEWER_TEMPLATE = `
             <canvas id="signatureCanvas" width="560" height="140" style="background: #ffffff; border-radius: 6px; border: 1px solid #475569; width: 100%; height: 140px; cursor: crosshair; touch-action: none;"></canvas>
           </div>
 
-          <!-- Position & Page Target -->
+          <!-- Positionnement et page cible -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
             <div>
               <label style="display: block; font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Emplacement du tampon</label>
@@ -500,7 +500,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Document Loading Progress Overlay -->
+    <!-- Calque indicateur de progression du chargement du document -->
     <div class="loading-overlay" id="docLoadingOverlay" style="display: none;">
       <div class="loading-box">
         <div class="spinner-ring"></div>
@@ -509,7 +509,7 @@ export const VIEWER_TEMPLATE = `
       </div>
     </div>
 
-    <!-- Drag & Drop Global Overlay -->
+    <!-- Calque global de glisser-déposer (Drag & Drop) -->
     <div class="drag-drop-overlay" id="dragDropOverlay" style="display: none;">
       <div class="drag-drop-box">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

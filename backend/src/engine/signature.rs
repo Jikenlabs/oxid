@@ -13,7 +13,7 @@ use crate::models::{SignRequest, SignResponse};
 pub struct DigitalSignatureEngine;
 
 impl DigitalSignatureEngine {
-    /// Calculate SHA-256 digest of file
+    /// Calcule l'empreinte SHA-256 d'un fichier.
     pub fn compute_sha256(path: &Path) -> Result<String> {
         let bytes = fs::read(path).with_context(|| format!("Failed to read {}", path.display()))?;
         let mut hasher = Sha256::new();
@@ -22,7 +22,7 @@ impl DigitalSignatureEngine {
         Ok(hex::encode(result))
     }
 
-    /// Sign PDF document by adding visual stamped cartouche and digital metadata
+    /// Signe un document PDF en apposant un cartouche visuel horodaté et des métadonnées numériques.
     pub fn sign_pdf(
         input_path: &Path,
         output_path: &Path,
@@ -43,8 +43,8 @@ impl DigitalSignatureEngine {
             .get(&target_page_num)
             .context("Target page not found in PDF")?;
 
-        // Extract page dimensions
-        let mut page_height = 842.0; // Default A4
+        // Extrait les dimensions de la page
+        let mut page_height = 842.0; // Valeur par défaut A4
         if let Ok(page_dict) = doc.get_object(page_id).and_then(|o| o.as_dict()) {
             let box_obj = page_dict.get(b"CropBox").or_else(|_| page_dict.get(b"MediaBox"));
             let to_f64 = |o: &lopdf::Object| match o {
@@ -61,13 +61,13 @@ impl DigitalSignatureEngine {
             }
         }
 
-        // Coordinates: Browser origin top-left -> PDF origin bottom-left
+        // Coordonnées : Origine navigateur en haut à gauche -> Origine PDF en bas à gauche
         let stamp_x = req.x;
         let stamp_y = (page_height - (req.y + req.height)).max(0.0);
         let stamp_w = req.width.max(120.0);
         let stamp_h = req.height.max(60.0);
 
-        // Optional handwritten image handling
+        // Gestion optionnelle de l'image manuscrite
         let mut image_xobject_name: Option<String> = None;
         let mut image_xobject_id: Option<lopdf::ObjectId> = None;
         if let Some(ref b64) = req.handwritten_png_base64 {
@@ -83,7 +83,7 @@ impl DigitalSignatureEngine {
                                 let mut rgb_bytes = Vec::with_capacity(total_bytes);
                         for pixel in rgba.pixels() {
                             let alpha = pixel[3] as f32 / 255.0;
-                            // Blend with white background
+                            // Fusionne avec un arrière-plan blanc (canal alpha)
                             let r = ((pixel[0] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
                             let g = ((pixel[1] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
                             let b = ((pixel[2] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
@@ -113,7 +113,7 @@ impl DigitalSignatureEngine {
             }
         }
 
-        // Register standard fonts in Page Resources so all viewers render them flawlessly
+        // Enregistre les polices standard dans Resources pour un rendu fidèle dans tous les lecteurs PDF
         let font_reg_id = doc.add_object(lopdf::dictionary! {
             "Type" => "Font",
             "Subtype" => "Type1",
@@ -125,7 +125,7 @@ impl DigitalSignatureEngine {
             "BaseFont" => "Helvetica-Bold",
         });
 
-        // Register fonts and XObjects in Page Resources (handles indirect references)
+        // Enregistre polices et XObjects dans les ressources de page (gère les références indirectes)
         if let Ok(res_dict) = get_or_create_resources(&mut doc, page_id) {
             if !res_dict.has(b"Font") {
                 res_dict.set("Font", Dictionary::new());
@@ -146,7 +146,7 @@ impl DigitalSignatureEngine {
             }
         }
 
-        // Build Stamp Visual PDF Stream
+        // Construit le flux graphique PDF du tampon visuel
         let signer = escape_pdf_str(&req.signer_name);
         let reason = escape_pdf_str(req.reason.as_deref().unwrap_or("Approbation légale"));
         let location = escape_pdf_str(req.location.as_deref().unwrap_or("Paris, FR"));
@@ -155,19 +155,19 @@ impl DigitalSignatureEngine {
         let mut stream = String::new();
         stream.push_str("\nq\n");
 
-        // 1. Box background (subtle light blue/gray fill)
+        // 1. Fond du cartouche (teinte bleu/gris très claire)
         stream.push_str(&format!(
             "0.96 0.98 1.0 rg\n{:.2} {:.2} {:.2} {:.2} re\nf\n",
             stamp_x, stamp_y, stamp_w, stamp_h
         ));
 
-        // 2. Box border (formal navy blue stroke)
+        // 2. Bordure du cartouche (bleu marine solennel)
         stream.push_str(&format!(
             "0.1 0.3 0.6 RG\n1.5 w\n{:.2} {:.2} {:.2} {:.2} re\nS\n",
             stamp_x, stamp_y, stamp_w, stamp_h
         ));
 
-        // 3. Header band
+        // 3. Bandeau d'en-tête
         let header_h = 16.0f64.min(stamp_h * 0.28);
         let header_y = stamp_y + stamp_h - header_h;
         stream.push_str(&format!(
@@ -175,14 +175,14 @@ impl DigitalSignatureEngine {
             stamp_x, header_y, stamp_w, header_h
         ));
 
-        // Header text in white
+        // Texte de l'en-tête en blanc
         stream.push_str(&format!(
             "1 1 1 rg\nBT\n/SigFontBold 7 Tf\n{:.2} {:.2} Td\n(DOC. SIGNE ELECTRONIQUEMENT - CERTIFIE) Tj\nET\n",
             stamp_x + 6.0,
             header_y + 4.5
         ));
 
-        // 4. Content body
+        // 4. Corps textuel du tampon
         let text_left = stamp_x + 6.0;
         let mut cur_y = header_y - 10.0;
 
@@ -209,7 +209,7 @@ impl DigitalSignatureEngine {
             text_left, cur_y, short_hash
         ));
 
-        // 5. Draw handwritten signature if available
+        // 5. Dessine la signature manuscrite si fournie
         if let Some(xname) = image_xobject_name {
             let img_w = 60.0f64.min(stamp_w * 0.4);
             let img_h = (stamp_h - header_h - 6.0).max(10.0);
@@ -228,7 +228,7 @@ impl DigitalSignatureEngine {
             let _ = doc.add_to_page_content(page_id, content);
         }
 
-        // Add Digital Signature Metadata in PDF Catalog
+        // Ajoute les métadonnées de signature numérique dans le catalogue PDF (Catalog/Root)
         if let Ok(root_id) = doc.trailer.get(b"Root").and_then(|o| o.as_reference()) {
             if let Ok(root_dict) = doc.get_object_mut(root_id).and_then(|o| o.as_dict_mut()) {
                 let mut sig_meta = Dictionary::new();
@@ -279,7 +279,7 @@ fn escape_pdf_str(s: &str) -> String {
 }
 
 fn base64_decode(input: &str) -> Result<Vec<u8>> {
-    // Lightweight base64 decode without external crate
+    // Décodage base64 léger sans dépendance externe
     const B64_TABLE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut clean: Vec<u8> = Vec::with_capacity(input.len());
     for &b in input.as_bytes() {

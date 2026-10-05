@@ -46,6 +46,7 @@ services:
       - OXID_DATA_DIR=/data
       - OXID_OFFICE_ENGINE=hybrid
       - OXID_GOTENBERG_URL=http://gotenberg:3000
+      - OXID_CORS_ALLOWED_ORIGINS=*
     volumes:
       - oxid_data:/data
     depends_on:
@@ -314,6 +315,27 @@ Les applications clientes peuvent s'authentifier au choix :
   ```
 
 Pour une description exhaustive des quotas et de la synchronisation distribuée Redis, consultez la [Spécification de l'API de Conversion](CONVERSION_API.md#--authentification--gestion-des-clés-api).
+
+---
+
+## 🌐 Configuration des Origines CORS (Cross-Origin Resource Sharing)
+
+Par défaut, Oxid autorise toutes les origines (`*`) pour faciliter les tests et l'intégration locale. En environnement de production, vous pouvez restreindre les origines autorisées à vos seuls domaines applicatifs.
+
+### Variables d'environnement :
+* `OXID_CORS_ALLOWED_ORIGINS` (ou alias `OXID_CORS_ORIGIN`) : Liste des origines autorisées séparées par des virgules (défaut : `*`).
+* `OXID_CORS_ALLOW_CREDENTIALS` : `true` ou `false` pour autoriser l'envoi de cookies et d'en-têtes d'authentification (activé par défaut si des origines spécifiques sont déclarées, désactivé si wildcard `*`).
+
+### Exemple de restriction en production :
+```bash
+docker run -d \
+  --name oxid-viewer \
+  -p 8080:8080 \
+  -e OXID_CORS_ALLOWED_ORIGINS="https://ged.monentreprise.fr,https://app.monentreprise.fr" \
+  -e OXID_CORS_ALLOW_CREDENTIALS=true \
+  -v oxid_data:/data \
+  ghcr.io/jikenlabs/oxid:latest
+```
 
 ---
 

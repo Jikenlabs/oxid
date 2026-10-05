@@ -50,7 +50,7 @@ impl CacheManager {
     }
 
     pub async fn get(&self, key: &str) -> Option<Vec<u8>> {
-        // 1. Check L1 RAM Cache (Ultra-low latency < 50 µs)
+        // 1. Vérification du cache L1 RAM (Latence ultra-faible < 50 µs)
         {
             let mem = self.memory_cache.read().await;
             if let Some(data) = mem.get(key) {
@@ -59,12 +59,12 @@ impl CacheManager {
             }
         }
 
-        // 2. Check L2 Distributed / Shared Disk Cache
+        // 2. Vérification du cache L2 distribué / disque partagé
         let disk_path = self.disk_path(key);
         if disk_path.exists() {
             if let Ok(data) = fs::read(&disk_path) {
                 self.stats.l2_hits.fetch_add(1, Ordering::Relaxed);
-                // Populate back to L1 RAM
+                // Réinsertion dans le cache L1 RAM
                 let mut mem = self.memory_cache.write().await;
                 mem.insert(key.to_string(), data.clone());
                 return Some(data);
@@ -78,11 +78,11 @@ impl CacheManager {
     pub async fn set(&self, key: &str, data: Vec<u8>) {
         self.stats.writes.fetch_add(1, Ordering::Relaxed);
 
-        // Save to L2 (Shared cluster volume / disk)
+        // Écriture dans le cache L2 (Volume partagé cluster / disque)
         let disk_path = self.disk_path(key);
         let _ = fs::write(&disk_path, &data);
 
-        // Save to L1 RAM
+        // Enregistrement dans le cache L1 RAM
         let mut mem = self.memory_cache.write().await;
         if mem.len() > 1000 {
             mem.clear();

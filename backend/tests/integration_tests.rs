@@ -231,7 +231,7 @@ fn test_builder_multi_page_deletion_rotation_and_watermark() {
     let four_page_pdf = temp_dir.path().join("four_pages.pdf");
     let built_output = temp_dir.path().join("built_multi.pdf");
 
-    // Merge 2x sample_test.pdf (2 pages each -> 4 pages)
+    // Fusionne 2x sample_test.pdf (2 pages chacun -> 4 pages)
     let status = std::process::Command::new("pdfunite")
         .arg(&sample_path)
         .arg(&sample_path)
@@ -243,7 +243,7 @@ fn test_builder_multi_page_deletion_rotation_and_watermark() {
     let four_meta = PdfEngine::get_metadata("4p", "4p.pdf", &four_page_pdf).unwrap();
     assert_eq!(four_meta.page_count, 4);
 
-    // Delete page 2 and page 4, rotate page 1 by 180 and page 3 by 90
+    // Supprime les pages 2 et 4, pivote la page 1 de 180° et la page 3 de 90°
     let order = DocumentBuildOrder {
         source_document_ids: vec!["multi-doc".to_string()],
         page_actions: vec![
@@ -287,18 +287,18 @@ fn test_builder_multi_page_deletion_rotation_and_watermark() {
 fn test_comparison_engine() {
     let sample_path = ensure_sample_pdf();
 
-    // Compare identical page 1
+    // Compare la page 1 identique
     let result_same = ComparisonEngine::compare_pages(&sample_path, &sample_path, 1, 72).unwrap();
     assert!(result_same.diff_ratio < 0.01);
     assert!(!result_same.has_differences);
     assert!(!result_same.diff_image_png.is_empty());
 
-    // Compare identical page 2
+    // Compare la page 2 identique
     let result_p2 = ComparisonEngine::compare_pages(&sample_path, &sample_path, 2, 72).unwrap();
     assert!(result_p2.diff_ratio < 0.01);
     assert!(!result_p2.has_differences);
 
-    // Test out of range page fails gracefully
+    // Vérifie que les pages hors limites échouent proprement
     let result_out = ComparisonEngine::compare_pages(&sample_path, &sample_path, 99, 72);
     assert!(result_out.is_err());
 }
@@ -312,7 +312,7 @@ async fn test_connectors_filesystem_and_registry() {
     let docs_dir = temp_dir.path().join("docs");
     std::fs::create_dir_all(&docs_dir).unwrap();
 
-    // Copy sample_test.pdf into docs_dir
+    // Copie sample_test.pdf dans docs_dir
     let sample_in_docs = docs_dir.join("sample.pdf");
     std::fs::copy(&sample_path, &sample_in_docs).unwrap();
 
@@ -326,7 +326,7 @@ async fn test_connectors_filesystem_and_registry() {
         extra_params: HashMap::new(),
     };
 
-    // Open through registry
+    // Ouvre via le registre de connecteurs
     let doc_id = registry
         .open_document(&doc_ref, &ctx, &storage)
         .await
@@ -334,18 +334,18 @@ async fn test_connectors_filesystem_and_registry() {
 
     assert!(!doc_id.is_empty());
 
-    // Verify document path exists in storage
+    // Vérifie que le chemin du document existe dans le stockage
     let path = storage.get_document_path(&doc_id);
     assert!(path.is_some());
 
-    // Test saving annotations through connector
+    // Teste la sauvegarde d'annotations via le connecteur
     let xfdf_content = "<xfdf><annots><highlight page=\"0\"/></annots></xfdf>";
     registry
         .sync_annotations(&doc_id, xfdf_content, &ctx, &storage)
         .await
         .expect("Failed to sync annotations to connector");
 
-    // Check that .xfdf was saved on source
+    // Vérifie que le fichier .xfdf a été enregistré à la source
     let source_xfdf = docs_dir.join("sample.xfdf");
     assert!(source_xfdf.exists(), "Source XFDF file should be saved");
 }
@@ -364,7 +364,7 @@ fn test_text_converter_to_pdf() {
 
     assert!(pdf_output.exists());
     let meta = PdfEngine::get_metadata("txt-1", "logfile.txt", &pdf_output).unwrap();
-    assert_eq!(meta.page_count, 2); // 60 lines divided into 48 lines/page -> 2 pages
+    assert_eq!(meta.page_count, 2); // 60 lignes divisées en 48 lignes/page -> 2 pages
 }
 
 #[test]
@@ -402,7 +402,7 @@ fn test_docx_native_converter() {
     let docx_file = temp_dir.path().join("document.docx");
     let pdf_output = temp_dir.path().join("document.pdf");
 
-    // Construct a minimal valid DOCX in memory (ZIP with word/document.xml)
+    // Construit un DOCX valide minimal en mémoire (ZIP avec word/document.xml)
     {
         let file = std::fs::File::create(&docx_file).unwrap();
         let mut zip = zip::ZipWriter::new(file);
@@ -440,14 +440,14 @@ fn test_docx_native_converter_with_embedded_image() {
     let docx_file = temp_dir.path().join("doc_with_img.docx");
     let pdf_output = temp_dir.path().join("doc_with_img.pdf");
 
-    // Construct a DOCX with an embedded PNG image and relationship
+    // Construit un DOCX avec une image PNG intégrée et sa relation
     {
         let file = std::fs::File::create(&docx_file).unwrap();
         let mut zip = zip::ZipWriter::new(file);
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
 
-        // 1. Relationship mapping
+        // 1. Mappage des relations
         zip.start_file("word/_rels/document.xml.rels", options).unwrap();
         use std::io::Write;
         let rels = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -456,14 +456,14 @@ fn test_docx_native_converter_with_embedded_image() {
         </Relationships>"#;
         zip.write_all(rels.as_bytes()).unwrap();
 
-        // 2. Dummy 2x2 PNG image in word/media/image1.png
+        // 2. Image PNG factice 2x2 dans word/media/image1.png
         zip.start_file("word/media/image1.png", options).unwrap();
         let img = image::RgbaImage::from_pixel(2, 2, image::Rgba([255, 0, 0, 255]));
         let mut png_buf = std::io::Cursor::new(Vec::new());
         img.write_to(&mut png_buf, image::ImageFormat::Png).unwrap();
         zip.write_all(png_buf.get_ref()).unwrap();
 
-        // 3. Document body referencing rId1
+        // 3. Corps du document référençant rId1
         zip.start_file("word/document.xml", options).unwrap();
         let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
         <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -513,27 +513,27 @@ fn test_real_user_docx_conversion() {
 fn test_pii_algorithms() {
     use oxid::engine::pii::PiiEngine;
 
-    // 1. Luhn Credit Card validation
-    assert!(PiiEngine::is_valid_luhn("4532015112830366")); // Valid test Visa
-    assert!(!PiiEngine::is_valid_luhn("4532015112830367")); // Invalid checksum
+    // 1. Validation carte bancaire (Luhn)
+    assert!(PiiEngine::is_valid_luhn("4532015112830366")); // Visa de test valide
+    assert!(!PiiEngine::is_valid_luhn("4532015112830367")); // Somme de contrôle invalide
 
-    // 2. IBAN validation (FR76...)
+    // 2. Validation IBAN (FR76...)
     assert!(PiiEngine::is_valid_iban("FR7630006000011234567890189"));
-    assert!(!PiiEngine::is_valid_iban("FR7630006000011234567890199")); // Invalid key
+    assert!(!PiiEngine::is_valid_iban("FR7630006000011234567890199")); // Clé invalide
 
-    // 3. French NIR Social Security validation
-    // Key = 97 - (1851275108042 % 97)
+    // 3. Validation numéro de sécurité sociale français (NIR)
+    // Clé = 97 - (1851275108042 % 97)
     let nir_base: u64 = 1851275108042;
     let expected_key = 97 - (nir_base % 97);
     let full_nir = format!("{}{:02}", nir_base, expected_key);
     assert!(PiiEngine::is_valid_french_nir(&full_nir));
-    assert!(!PiiEngine::is_valid_french_nir("185127510804200")); // Wrong key
+    assert!(!PiiEngine::is_valid_french_nir("185127510804200")); // Mauvaise clé
 
-    // 4. Email validation
+    // 4. Validation adresse email
     assert!(PiiEngine::is_valid_email("contact@acme.com"));
     assert!(!PiiEngine::is_valid_email("not-an-email"));
 
-    // 5. Phone validation
+    // 5. Validation numéro de téléphone
     assert!(PiiEngine::is_valid_phone("+33612345678"));
     assert!(PiiEngine::is_valid_phone("0612345678"));
 }
@@ -560,7 +560,7 @@ fn test_pii_and_search_spans() {
             height: 12.0,
             font_size: 12.0,
         },
-        // Multi-span IBAN: FR76 3000 6000 0112 3456 7890 189
+        // IBAN multi-segments : FR76 3000 6000 0112 3456 7890 189
         TextSpan {
             text: "FR7630006000011234567890189".to_string(),
             x: 10.0,
@@ -612,11 +612,11 @@ fn test_digital_signature_and_stamp() {
     assert_eq!(resp.page_number, 1);
     assert!(!resp.sha256_digest.is_empty());
 
-    // Verify rendering of signed PDF with visual stamp
+    // Vérifie le rendu du PDF signé avec le cartouche visuel
     let png = PdfEngine::render_page(&signed_pdf, 1, 100).unwrap();
     assert!(!png.is_empty());
 
-    // Verify PDF catalog contains signature metadata
+    // Vérifie que le catalogue PDF contient les métadonnées de signature
     let doc = lopdf::Document::load(&signed_pdf).unwrap();
     let root_id = doc.trailer.get(b"Root").unwrap().as_reference().unwrap();
     let root_dict = doc.get_object(root_id).unwrap().as_dict().unwrap();
@@ -635,25 +635,25 @@ async fn test_cluster_cache_and_metrics() {
     let key = "doc123-p1-150";
     let fake_image_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
 
-    // Miss first
+    // Échec de cache initial (Miss)
     let res = cache.get(key).await;
     assert!(res.is_none());
     assert_eq!(cache.stats.misses.load(std::sync::atomic::Ordering::Relaxed), 1);
 
-    // Set
+    // Écriture (Set)
     cache.set(key, fake_image_data.clone()).await;
     assert_eq!(cache.stats.writes.load(std::sync::atomic::Ordering::Relaxed), 1);
 
-    // Hit L1 RAM
+    // Succès Cache L1 RAM (Hit)
     let res2 = cache.get(key).await;
     assert_eq!(res2, Some(fake_image_data.clone()));
     assert_eq!(cache.stats.l1_hits.load(std::sync::atomic::Ordering::Relaxed), 1);
 
-    // Simulate eviction from L1 to test L2 recovery
+    // Simule l'éviction du L1 pour tester la récupération L2
     cache.clear_for_doc("doc123").await;
     assert_eq!(cache.l1_entry_count().await, 0);
 
-    // Hit L2 Disk/Distributed
+    // Succès Cache L2 Disque / Distribué (Hit)
     let res3 = cache.get(key).await;
     assert_eq!(res3, Some(fake_image_data));
     assert_eq!(cache.stats.l2_hits.load(std::sync::atomic::Ordering::Relaxed), 1);
@@ -663,7 +663,7 @@ async fn test_cluster_cache_and_metrics() {
 fn test_extended_formats_support() {
     let temp_dir = tempfile::tempdir().unwrap();
 
-    // 1. Test image format support (WebP & PNG)
+    // 1. Test du support des formats d'image (WebP & PNG)
     let img_path = temp_dir.path().join("test.png");
     let img = image::RgbImage::new(100, 100);
     img.save(&img_path).unwrap();
@@ -676,9 +676,9 @@ fn test_extended_formats_support() {
     assert!(!rendered.is_empty());
     assert_eq!(&rendered[1..4], b"PNG");
 
-    // 2. Test OpenDocument Draw (ODG) / Visio (VSDX) native representation
+    // 2. Test de la représentation native OpenDocument Draw (ODG) / Visio (VSDX)
     let odg_path = temp_dir.path().join("diagram.odg");
-    // Create a mock zip containing content.xml
+    // Crée une archive zip factice contenant content.xml
     {
         let file = std::fs::File::create(&odg_path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
@@ -703,7 +703,7 @@ fn test_presentation_slide_text_accuracy() {
         return;
     }
 
-    // Page 1: Verify "Cadrage" and "bis" do not overshoot
+    // Page 1 : Vérifie que "Cadrage" et "bis" ne débordent pas
     let p1 = PdfEngine::get_page_text(&pdf_path, 1).unwrap();
     let cadrage = p1.spans.iter().find(|s| s.text == "Cadrage").unwrap();
     assert!(
@@ -719,7 +719,7 @@ fn test_presentation_slide_text_accuracy() {
         bis.x + bis.width
     );
 
-    // Page 2: Verify "solution" in "Périmètre de la solution" is fully covered
+    // Page 2 : Vérifie que "solution" dans "Périmètre de la solution" est intégralement couvert
     let p2 = PdfEngine::get_page_text(&pdf_path, 2).unwrap();
     let solution = p2.spans.iter().find(|s| s.text == "solution").unwrap();
     assert!(
@@ -738,7 +738,7 @@ fn test_acroform_extraction_and_fill() {
     let pages_id = doc.new_object_id();
     let page_id = doc.new_object_id();
 
-    // Create a Text Field Widget
+    // Crée un widget de champ texte (Text Field)
     let mut field1_dict = Dictionary::new();
     field1_dict.set("Type", Object::Name(b"Annot".to_vec()));
     field1_dict.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -763,7 +763,7 @@ fn test_acroform_extraction_and_fill() {
     field1_dict.set("P", Object::Reference(page_id));
     let field1_id = doc.add_object(Object::Dictionary(field1_dict));
 
-    // Create a Checkbox Field Widget
+    // Crée un widget de case à cocher (Checkbox)
     let mut field2_dict = Dictionary::new();
     field2_dict.set("Type", Object::Name(b"Annot".to_vec()));
     field2_dict.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -785,7 +785,7 @@ fn test_acroform_extraction_and_fill() {
     field2_dict.set("P", Object::Reference(page_id));
     let field2_id = doc.add_object(Object::Dictionary(field2_dict));
 
-    // Page dict
+    // Dictionnaire Page
     let mut page_dict = Dictionary::new();
     page_dict.set("Type", Object::Name(b"Page".to_vec()));
     page_dict.set("Parent", Object::Reference(pages_id));
@@ -807,14 +807,14 @@ fn test_acroform_extraction_and_fill() {
     );
     doc.objects.insert(page_id, Object::Dictionary(page_dict));
 
-    // Pages dict
+    // Dictionnaire Pages
     let mut pages_dict = Dictionary::new();
     pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
     pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
     pages_dict.set("Count", Object::Integer(1));
     doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
 
-    // AcroForm dict
+    // Dictionnaire AcroForm
     let mut acro_dict = Dictionary::new();
     acro_dict.set(
         "Fields",
@@ -825,7 +825,7 @@ fn test_acroform_extraction_and_fill() {
     );
     let acro_id = doc.add_object(Object::Dictionary(acro_dict));
 
-    // Catalog dict
+    // Dictionnaire Catalog
     let mut catalog_dict = Dictionary::new();
     catalog_dict.set("Type", Object::Name(b"Catalog".to_vec()));
     catalog_dict.set("Pages", Object::Reference(pages_id));
@@ -837,7 +837,7 @@ fn test_acroform_extraction_and_fill() {
     let form_pdf_path = temp_dir.join("test_acroform.pdf");
     doc.save(&form_pdf_path).unwrap();
 
-    // 1. Test extraction
+    // 1. Test d'extraction
     let summary = FormEngine::extract_form_fields(&form_pdf_path).unwrap();
     assert_eq!(summary.fields_count, 2);
     assert!(summary.has_forms);
@@ -846,7 +846,7 @@ fn test_acroform_extraction_and_fill() {
     assert_eq!(f1.field_type, oxid::models::FormFieldType::Text);
     assert_eq!(f1.value, "Jean");
     assert_eq!(f1.page_number, 1);
-    // Page height = 792. Rect y top was 720 -> y viewer = 792 - 720 = 72.
+    // Hauteur de page = 792. Rect y supérieur était à 720 -> y visionneuse = 792 - 720 = 72.
     assert!((f1.y - 72.0).abs() < 1.0);
 
     let f2 = summary
@@ -857,7 +857,7 @@ fn test_acroform_extraction_and_fill() {
     assert_eq!(f2.field_type, oxid::models::FormFieldType::Checkbox);
     assert_eq!(f2.value, "Yes");
 
-    // 2. Test filling
+    // 2. Test de remplissage
     let mut fill_values = HashMap::new();
     fill_values.insert(
         "FirstName".to_string(),
@@ -872,7 +872,7 @@ fn test_acroform_extraction_and_fill() {
         FormEngine::fill_form_fields(&form_pdf_path, &form_pdf_path, &fill_values).unwrap();
     assert_eq!(updated_count, 2);
 
-    // 3. Re-extract to verify updated values
+    // 3. Ré-extraction pour vérifier les valeurs mises à jour
     let updated_summary = FormEngine::extract_form_fields(&form_pdf_path).unwrap();
     let updated_f1 = updated_summary
         .fields
@@ -892,7 +892,7 @@ fn test_generate_sample_form_file() {
     let pages_id = doc.new_object_id();
     let page_id = doc.new_object_id();
 
-    // 1. Text Field: Nom_Complet
+    // 1. Champ texte : Nom_Complet
     let mut f1 = Dictionary::new();
     f1.set("Type", Object::Name(b"Annot".to_vec()));
     f1.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -917,12 +917,12 @@ fn test_generate_sample_form_file() {
     f1.set("P", Object::Reference(page_id));
     let f1_id = doc.add_object(Object::Dictionary(f1));
 
-    // 2. Multiline Text Field: Commentaires
+    // 2. Champ texte multiligne : Commentaires
     let mut f2 = Dictionary::new();
     f2.set("Type", Object::Name(b"Annot".to_vec()));
     f2.set("Subtype", Object::Name(b"Widget".to_vec()));
     f2.set("FT", Object::Name(b"Tx".to_vec()));
-    f2.set("Ff", Object::Integer(1 << 12)); // Multiline flag (bit 13)
+    f2.set("Ff", Object::Integer(1 << 12)); // Indicateur multiligne (bit 13)
     f2.set(
         "T",
         Object::String(b"Commentaires".to_vec(), StringFormat::Literal),
@@ -946,7 +946,7 @@ fn test_generate_sample_form_file() {
     f2.set("P", Object::Reference(page_id));
     let f2_id = doc.add_object(Object::Dictionary(f2));
 
-    // 3. Checkbox: Consentement_RGPD
+    // 3. Case à cocher : Consentement_RGPD
     let mut f3 = Dictionary::new();
     f3.set("Type", Object::Name(b"Annot".to_vec()));
     f3.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -968,7 +968,7 @@ fn test_generate_sample_form_file() {
     f3.set("P", Object::Reference(page_id));
     let f3_id = doc.add_object(Object::Dictionary(f3));
 
-    // 4. Choice / Select: Departement
+    // 4. Liste de choix : Departement
     let mut f4 = Dictionary::new();
     f4.set("Type", Object::Name(b"Annot".to_vec()));
     f4.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -1002,7 +1002,7 @@ fn test_generate_sample_form_file() {
     f4.set("P", Object::Reference(page_id));
     let f4_id = doc.add_object(Object::Dictionary(f4));
 
-    // 5. Signature Field: Signature_Client
+    // 5. Champ de signature : Signature_Client
     let mut f5 = Dictionary::new();
     f5.set("Type", Object::Name(b"Annot".to_vec()));
     f5.set("Subtype", Object::Name(b"Widget".to_vec()));
@@ -1023,7 +1023,7 @@ fn test_generate_sample_form_file() {
     f5.set("P", Object::Reference(page_id));
     let f5_id = doc.add_object(Object::Dictionary(f5));
 
-    // Page
+    // Dictionnaire Page
     let mut page_dict = Dictionary::new();
     page_dict.set("Type", Object::Name(b"Page".to_vec()));
     page_dict.set("Parent", Object::Reference(pages_id));
@@ -1048,14 +1048,14 @@ fn test_generate_sample_form_file() {
     );
     doc.objects.insert(page_id, Object::Dictionary(page_dict));
 
-    // Pages
+    // Dictionnaire Pages
     let mut pages_dict = Dictionary::new();
     pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
     pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
     pages_dict.set("Count", Object::Integer(1));
     doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
 
-    // AcroForm
+    // Dictionnaire AcroForm
     let mut acro_dict = Dictionary::new();
     acro_dict.set(
         "Fields",
@@ -1069,7 +1069,7 @@ fn test_generate_sample_form_file() {
     );
     let acro_id = doc.add_object(Object::Dictionary(acro_dict));
 
-    // Catalog
+    // Dictionnaire Catalog
     let mut catalog_dict = Dictionary::new();
     catalog_dict.set("Type", Object::Name(b"Catalog".to_vec()));
     catalog_dict.set("Pages", Object::Reference(pages_id));
@@ -1114,6 +1114,112 @@ fn test_generate_sample_form_file() {
 
     println!("All 5 fields extracted with 100% fidelity!");
 }
+
+#[tokio::test]
+async fn test_cors_http_headers() {
+    use axum::body::Body;
+    use axum::http::{header, Request, StatusCode};
+    use axum::routing::get;
+    use axum::Router;
+    use oxid::config::AppConfig;
+    use tower::ServiceExt;
+
+    // 1. Test avec wildcard par défaut (*)
+    let mut config_default = AppConfig::default();
+    config_default.cors_allowed_origins = vec!["*".to_string()];
+    config_default.cors_allow_credentials = false;
+
+    let app_wildcard = Router::new()
+        .route("/test", get(|| async { "ok" }))
+        .layer(config_default.build_cors_layer());
+
+    let req = Request::builder()
+        .method("GET")
+        .uri("/test")
+        .header(header::ORIGIN, "https://example.com")
+        .body(Body::empty())
+        .unwrap();
+
+    let res = app_wildcard.oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(
+        res.headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|v| v.to_str().ok()),
+        Some("*")
+    );
+
+    // 2. Test avec origines explicites et credentials
+    let mut config_restricted = AppConfig::default();
+    config_restricted.cors_allowed_origins = vec![
+        "https://app.client.com".to_string(),
+        "http://localhost:3000".to_string(),
+    ];
+    config_restricted.cors_allow_credentials = true;
+
+    let app_restricted = Router::new()
+        .route("/test", get(|| async { "ok" }))
+        .layer(config_restricted.build_cors_layer());
+
+    // Requête GET depuis une origine explicitement autorisée
+    let req_allowed = Request::builder()
+        .method("GET")
+        .uri("/test")
+        .header(header::ORIGIN, "https://app.client.com")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_allowed = app_restricted.clone().oneshot(req_allowed).await.unwrap();
+    assert_eq!(res_allowed.status(), StatusCode::OK);
+    assert_eq!(
+        res_allowed
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|v| v.to_str().ok()),
+        Some("https://app.client.com")
+    );
+    assert_eq!(
+        res_allowed
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .and_then(|v| v.to_str().ok()),
+        Some("true")
+    );
+
+    // Requête preflight OPTIONS
+    let req_preflight = Request::builder()
+        .method("OPTIONS")
+        .uri("/test")
+        .header(header::ORIGIN, "https://app.client.com")
+        .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_preflight = app_restricted.clone().oneshot(req_preflight).await.unwrap();
+    assert_eq!(res_preflight.status(), StatusCode::OK);
+    assert_eq!(
+        res_preflight
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|v| v.to_str().ok()),
+        Some("https://app.client.com")
+    );
+
+    // Requête depuis une origine non autorisée (doit refuser l'en-tête Allow-Origin)
+    let req_denied = Request::builder()
+        .method("GET")
+        .uri("/test")
+        .header(header::ORIGIN, "https://malicious-site.com")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_denied = app_restricted.oneshot(req_denied).await.unwrap();
+    assert!(res_denied
+        .headers()
+        .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+        .is_none());
+}
+
 
 
 

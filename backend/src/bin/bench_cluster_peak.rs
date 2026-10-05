@@ -118,7 +118,7 @@ async fn main() -> Result<()> {
         "oxid-bench-got-4",
     ];
 
-    let total_conversions = 12; // 3 conversions per container across the 4 containers
+    let total_conversions = 12; // 3 conversions par conteneur réparties sur les 4 conteneurs
     let conversions_per_container = 3;
     let temp_dir = tempfile::tempdir()?;
     let t_start_conv = Instant::now();

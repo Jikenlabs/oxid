@@ -64,7 +64,7 @@ export class FormLayerRenderer {
 
   public setValue(fieldName: string, value: any) {
     this.fieldValues.set(fieldName, value);
-    // Also update any active input DOM element if present
+    // Met également à jour tout élément DOM de saisie actif si présent
     const inputs = document.querySelectorAll(`[data-field-name="${fieldName}"]`);
     inputs.forEach((input) => {
       if (input instanceof HTMLInputElement) {

@@ -1,5 +1,5 @@
-// Web Worker for asynchronous off-thread rendering, pre-fetching, and thumbnail caching
-// Ensures 120 FPS buttery smooth scrolling on 1,000+ page documents
+// Web Worker pour le rendu asynchrone hors thread principal, le pré-chargement et la mise en cache des miniatures
+// Garantit un défilement ultra-fluide à 120 FPS sur des documents volumineux de plus de 1 000 pages
 
 interface WorkerMessage {
   type: 'PREFETCH_PAGES' | 'PRELOAD_THUMBNAILS' | 'CLEAR_CACHE';
@@ -58,7 +58,7 @@ async function fetchPageBlob(docId: string, pNum: number, dpi: number, cacheKey:
       const blobUrl = URL.createObjectURL(blob);
       pageBlobCache.set(cacheKey, blobUrl);
 
-      // Notify main thread
+      // Notifie le thread principal
       self.postMessage({
         type: 'PAGE_CACHED',
         docId,
@@ -67,7 +67,7 @@ async function fetchPageBlob(docId: string, pNum: number, dpi: number, cacheKey:
       });
     }
   } catch (err) {
-    // Silently ignore prefetch network errors
+    // Ignore silencieusement les erreurs réseau lors du pré-chargement
   } finally {
     activeFetches.delete(cacheKey);
   }
@@ -82,7 +82,7 @@ async function fetchThumbBlob(docId: string, pNum: number, cacheKey: string) {
       const blobUrl = URL.createObjectURL(blob);
       thumbBlobCache.set(cacheKey, blobUrl);
 
-      // Notify main thread
+      // Notifie le thread principal
       self.postMessage({
         type: 'THUMBNAIL_CACHED',
         docId,
@@ -91,7 +91,7 @@ async function fetchThumbBlob(docId: string, pNum: number, cacheKey: string) {
       });
     }
   } catch (err) {
-    // Silently ignore prefetch errors
+    // Ignore silencieusement les erreurs de pré-chargement
   } finally {
     activeFetches.delete(cacheKey);
   }

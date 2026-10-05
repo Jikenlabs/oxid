@@ -22,7 +22,7 @@ export class OxidViewerElement extends HTMLElement {
   connectedCallback() {
     if (this.viewer) return;
 
-    // Inject styles and template into element
+    // Injecte les styles et le gabarit HTML dans l'élément
     this.innerHTML = `
       <style>
         oxid-viewer, .oxid-viewer-root {
@@ -42,14 +42,14 @@ export class OxidViewerElement extends HTMLElement {
 
     this.container = this.querySelector('.oxid-viewer-root');
 
-    // Instantiate OxidViewer attached to this container
+    // Instancie OxidViewer rattaché à ce conteneur
     this.viewer = new OxidViewer(this.container as HTMLElement);
     (window as any).oxidViewer = this.viewer;
 
-    // Forward custom events
+    // Relaye les événements personnalisés
     this.setupEventForwarding();
 
-    // Check initial attributes
+    // Vérifie les attributs initiaux
     const docId = this.getAttribute('doc-id');
     const src = this.getAttribute('src');
     const connector = this.getAttribute('connector');
@@ -88,7 +88,7 @@ export class OxidViewerElement extends HTMLElement {
   }
 
   private setupEventForwarding() {
-    // Re-dispatch viewer events on the custom element itself
+    // Réémet les événements du visualiseur sur le composant Web personnalisé lui-même
     const eventNames = [
       'documentloaded',
       'pagechanged',
@@ -160,7 +160,7 @@ export class OxidViewerElement extends HTMLElement {
     this.viewer?.print();
   }
 
-  // --- Public API ---
+  // --- API Publique ---
 
   public uploadDocument(file: File) {
     this.viewer?.uploadDocument(file);
@@ -318,7 +318,7 @@ export class OxidViewerElement extends HTMLElement {
     return this.viewer?.loadFormFields();
   }
 
-  // CAD / DAO Plans
+  // Plans CAO / DAO
   public getCadLayers() {
     return this.viewer?.getCadLayers() ?? [];
   }
@@ -331,7 +331,7 @@ export class OxidViewerElement extends HTMLElement {
     this.viewer?.setCadLayers(layers);
   }
 
-  // DICOM Medical Imaging
+  // Imagerie médicale DICOM
   public getDicomMetadata() {
     return this.viewer?.getDicomMetadata() ?? null;
   }
@@ -353,7 +353,7 @@ export class OxidViewerElement extends HTMLElement {
   }
 }
 
-// Register Custom Element
+// Enregistrement de l'élément personnalisé (Custom Element)
 if (typeof window !== 'undefined' && !customElements.get('oxid-viewer')) {
   customElements.define('oxid-viewer', OxidViewerElement);
 }

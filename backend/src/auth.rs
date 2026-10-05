@@ -74,18 +74,18 @@ impl ApiKeyManager {
             auth_required,
             redis_client,
             local_state: Arc::new(RwLock::new(HashMap::new())),
-            window_secs: 3600, // 1 hour window
+            window_secs: 3600, // Fenêtre glissante de quota : 1 heure (3600s)
         }
     }
 
-    /// Check if key is authorized and within quota. If valid, increments quota usage by 1.
+    /// Vérifie si la clé est autorisée et si le quota n'est pas dépassé. Si valide, incrémente le compteur d'usage de 1.
     pub async fn check_and_consume(&self, provided_key: Option<&str>) -> Result<QuotaInfo, QuotaError> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        // 1. If auth is not required and no key is provided, allow with unlimited quota
+        // 1. Si l'authentification n'est pas requise et qu'aucune clé n'est fournie, accès libre avec quota illimité
         if !self.auth_required && provided_key.is_none() {
             return Ok(QuotaInfo {
                 key: "anonymous".to_string(),
@@ -95,17 +95,17 @@ impl ApiKeyManager {
             });
         }
 
-        // 2. Validate key presence
+        // 2. Validation de la présence de la clé API
         let key = match provided_key {
             Some(k) if !k.is_empty() => k.trim(),
             _ => return Err(QuotaError::InvalidKey),
         };
 
-        // 3. Check if key is known
+        // 3. Vérification de l'existence de la clé dans la configuration
         let limit = match self.keys.get(key) {
             Some(&l) => l,
             None => {
-                // If keys map is empty but auth_required is false, grant default limit
+                // Si la table des clés est vide mais que auth_required est false, quota générique par défaut
                 if !self.auth_required {
                     10_000
                 } else {
@@ -114,17 +114,17 @@ impl ApiKeyManager {
             }
         };
 
-        // 4. Try Redis for distributed quota tracking
+        // 4. Tentative de suivi distribué des quotas via Redis
         if let Some(ref client) = self.redis_client {
             match self.check_redis_quota(client, key, limit, current_time).await {
                 Ok(info) => return Ok(info),
                 Err(e) => {
-                    warn!("Redis quota check failed ({}); falling back to local memory quota.", e);
+                    warn!("Échec de vérification du quota Redis ({}); bascule sur le quota mémoire local.", e);
                 }
             }
         }
 
-        // 5. Fallback: Local thread-safe in-memory quota tracking
+        // 5. Repli : suivi des quotas en mémoire locale thread-safe
         self.check_local_quota(key, limit, current_time).await
     }
 
@@ -142,14 +142,14 @@ impl ApiKeyManager {
 
         let redis_key = format!("oxid:quota:{}", key);
 
-        // Redis atomic INCR
+        // Incrémentation atomique Redis INCR
         let current_usage: u64 = redis::cmd("INCR")
             .arg(&redis_key)
             .query_async(&mut con)
             .await
             .map_err(|e| QuotaError::BackendError(e.to_string()))?;
 
-        // If this is the first hit, set expiration to window_secs
+        // Premier appel dans la fenêtre : initialisation de l'expiration TTL
         if current_usage == 1 {
             let _: () = redis::cmd("EXPIRE")
                 .arg(&redis_key)
@@ -159,7 +159,7 @@ impl ApiKeyManager {
                 .map_err(|e| QuotaError::BackendError(e.to_string()))?;
         }
 
-        // Get TTL for reset epoch calculation
+        // Récupération du TTL restant pour le calcul de l'epoch de réinitialisation
         let ttl: i64 = redis::cmd("TTL")
             .arg(&redis_key)
             .query_async(&mut con)
@@ -197,7 +197,7 @@ impl ApiKeyManager {
             window_start: current_time,
         });
 
-        // Window expired: reset window
+        // Fenêtre temporelle expirée : réinitialisation du compteur
         if current_time >= usage.window_start + self.window_secs {
             usage.count = 0;
             usage.window_start = current_time;

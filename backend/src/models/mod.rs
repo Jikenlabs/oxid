@@ -81,8 +81,8 @@ pub struct Annotation {
     pub created_at: String,
     pub content: Option<String>,
     #[serde(default)]
-    pub points: Vec<(f64, f64)>, // For freehand / polygon
-    pub reason: Option<String>,   // For redaction
+    pub points: Vec<(f64, f64)>, // Pour tracé libre / polygone
+    pub reason: Option<String>,   // Motif de caviardage
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -143,7 +143,7 @@ fn default_compare_mode() -> String {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompareResponse {
     pub page_number: usize,
-    pub diff_ratio: f64, // 0.0 to 1.0
+    pub diff_ratio: f64, // 0.0 à 1.0
     pub has_differences: bool,
 }
 

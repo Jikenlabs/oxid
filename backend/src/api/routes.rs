@@ -205,7 +205,7 @@ async fn open_remote_document(
             None
         }
     } else if params.connector.as_deref() == Some("cmis") {
-        // Default credentials for OpenCMIS test server
+        // Identifiants par défaut pour le serveur de test OpenCMIS
         Some(("user1".to_string(), "cm1sp@ssword".to_string()))
     } else {
         None
@@ -218,9 +218,9 @@ async fn open_remote_document(
         permissions: vec!["read".to_string(), "annotate".to_string()],
     };
 
-    // Case 1: Direct HTTP/HTTPS URL
+    // Cas 1 : URL HTTP/HTTPS directe
     if let Some(ref doc_url) = params.url {
-        // Validate URL against SSRF (blocks private/loopback/cloud metadata IPs)
+        // Validation de l'URL contre les attaques SSRF (blocage des IP privées, loopback et métadonnées cloud)
         let validated_url = crate::security::validate_ssrf_url(doc_url)
             .map_err(|e| (StatusCode::FORBIDDEN, format!("Protection SSRF: {}", e)))?;
 
@@ -231,17 +231,17 @@ async fn open_remote_document(
 
         let mut req = client.get(validated_url.as_str());
 
-        // 1. Support basic auth credentials embedded in URL (e.g. http://user:pass@host/...)
+        // 1. Prise en charge des identifiants HTTP Basic intégrés dans l'URL (ex: http://user:pass@host/...)
         if !validated_url.username().is_empty() {
             req = req.basic_auth(validated_url.username(), validated_url.password());
         }
 
-        // 2. Support explicit authentication token parameter
+        // 2. Prise en charge du paramètre explicite de jeton d'authentification
         if let Some(ref token) = params.token {
             let auth_header = if token.starts_with("Token ") || token.starts_with("Bearer ") || token.starts_with("Basic ") {
                 token.to_string()
             } else if token.len() == 40 && token.chars().all(|c| c.is_ascii_hexdigit()) {
-                // Paperless DRF token
+                // Jeton d'API REST Django / Paperless-ngx
                 format!("Token {}", token)
             } else {
                 format!("Bearer {}", token)
@@ -268,7 +268,7 @@ async fn open_remote_document(
         }
 
         let mut filename = params.filename.clone().unwrap_or_else(|| {
-            // Extract filename from URL as fallback
+            // Extrait le nom de fichier depuis l'URL en repli (fallback)
             doc_url
                 .rsplit('?')
                 .next()
@@ -280,7 +280,7 @@ async fn open_remote_document(
                 .to_string()
         });
 
-        // Try extracting real filename from Content-Disposition header
+        // Tente d'extraire le nom réel depuis l'en-tête Content-Disposition
         if let Some(cd) = resp.headers().get(reqwest::header::CONTENT_DISPOSITION) {
             if let Ok(cd_str) = cd.to_str() {
                 if let Some(fn_part) = cd_str.split("filename=").nth(1) {
@@ -298,7 +298,7 @@ async fn open_remote_document(
 
         filename = crate::security::sanitize_filename(&filename);
 
-        // Bounded stream download to prevent Out Of Memory (OOM) / decompression bomb DoS
+        // Téléchargement borné en flux continu pour éviter le déni de service par épuisement mémoire (OOM) ou bombe de décompression
         let mut bytes = Vec::new();
         while let Some(chunk) = resp.chunk().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))? {
             if bytes.len() + chunk.len() > 100 * 1024 * 1024 {
@@ -321,11 +321,11 @@ async fn open_remote_document(
         return Ok(Json(meta));
     }
 
-    // Case 2: Named connector (S3, CMIS, Filesystem)
+    // Cas 2 : Connecteur nommé (S3, CMIS, Filesystem)
     let connector_name = params.connector.unwrap_or_else(|| "filesystem".to_string());
     let resource_id = params
         .id
-        .ok_or((StatusCode::BAD_REQUEST, "Missing 'id' parameter".to_string()))?;
+        .ok_or((StatusCode::BAD_REQUEST, "Paramètre 'id' manquant".to_string()))?;
 
     if resource_id.contains("..") || resource_id.contains('\0') {
         return Err((StatusCode::BAD_REQUEST, "Tentative de traversée de chemin dans 'id'".to_string()));
@@ -502,7 +502,7 @@ async fn render_page(
 
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
 
-    // 1. Dynamic DICOM Windowing (applies to uncompressed raw CT/MR scans with Hounsfield Units)
+    // 1. Fenêtrage dynamique DICOM (pour scanners CT/IRM bruts non compressés avec unités Hounsfield)
     if (ext == "dcm" || ext == "dicom") && (params.wc.is_some() || params.ww.is_some()) {
         if let Ok(bytes) = std::fs::read(&path) {
             if let Ok(dataset) = crate::engine::converter::dicom::DicomConverter::parse_dicom(&bytes) {
@@ -523,7 +523,7 @@ async fn render_page(
         }
     }
 
-    // 2. Dynamic CAD Layers Filter
+    // 2. Filtrage dynamique des calques CAO/DAO
     if (ext == "dxf" || ext == "dwg") && params.layers.is_some() {
         if let Some(ref l_str) = params.layers {
             let active_set: std::collections::HashSet<String> = l_str.split(',').map(|s| s.trim().to_string()).collect();
@@ -713,7 +713,7 @@ async fn save_annotations(
         .save_annotations_xfdf(&doc_id, &xfdf_content)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Broadcast update to all connected collaborators
+    // Diffusion de la mise à jour à tous les collaborateurs connectés (WebSockets / SSE)
     let event_payload = serde_json::json!({
         "type": "ANNOTATIONS_UPDATED",
         "doc_id": doc_id,
@@ -721,7 +721,7 @@ async fn save_annotations(
     }).to_string();
     let _ = state.collab_tx.send(event_payload);
 
-    // Asynchronously propagate to remote ECM connector if mapped
+    // Propagation asynchrone vers le connecteur GED/ECM distant si configuré
     let ctx = SecurityContext::default();
     let _ = state
         .connectors
@@ -979,7 +979,7 @@ async fn download_document(
     crate::security::validate_doc_id(&doc_id)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
-    // RBAC Check: Check if user has permission to download
+    // Contrôle RBAC : vérifie si l'utilisateur dispose de la permission de téléchargement
     if let Some(user_perms) = headers.get("X-User-Permissions").and_then(|v| v.to_str().ok()) {
         if user_perms.contains("no-download")
             || (user_perms.contains("read-only") && !user_perms.contains("download"))
@@ -998,7 +998,7 @@ async fn download_document(
 
     let filename = state.storage.get_original_filename(&doc_id);
 
-    // Apply dynamic security watermark if requested
+    // Applique un filigrane dynamique de sécurité si demandé
     let (data, out_filename) = if let Some(ref wm_text) = params.watermark {
         let trimmed = wm_text.trim();
         if !trimmed.is_empty() {
@@ -1200,7 +1200,7 @@ async fn fill_document_forms(
         doc_id.clone()
     };
 
-    // Invalidate caches so page re-renders show updated field appearances
+    // Invalidation des caches pour forcer le rafraîchissement visuel des champs modifiés
     state.cache.invalidate_document(&target_doc_id).await;
 
     Ok(Json(FormFillResponse {
@@ -1222,7 +1222,7 @@ async fn convert_document_oneshot(
     Query(params): Query<ConvertQueryParams>,
     mut multipart: Multipart,
 ) -> Result<Response, (StatusCode, String)> {
-    // 1. API Key extraction and Quota verification
+    // 1. Extraction de la clé d'API et vérification des quotas horaires
     let api_key = headers
         .get("X-API-Key")
         .and_then(|v| v.to_str().ok())
@@ -1262,7 +1262,7 @@ async fn convert_document_oneshot(
         }
     };
 
-    // 2. Read multipart document
+    // 2. Lecture du document transmis via multipart/form-data
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut original_filename: Option<String> = None;
 
@@ -1295,17 +1295,17 @@ async fn convert_document_oneshot(
 
     let filename = original_filename.unwrap_or_else(|| "document.docx".to_string());
 
-    // 3. Save to storage for rendition processing
+    // 3. Enregistrement temporaire pour le pipeline de conversion
     let (doc_id, source_path) = state
         .storage
         .save_document(&filename, &data)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Erreur de stockage: {}", e)))?;
 
-    // 4. Convert document to PDF
+    // 4. Conversion du document source en PDF
     let rendition = match crate::engine::converter::FormatConverter::ensure_pdf_rendition(&source_path) {
         Ok(res) => res,
         Err(e) => {
-            // Cleanup on failure if ephemeral
+            // Purge immédiate en cas d'échec pour les documents éphémères
             let is_ephemeral = params.ephemeral.unwrap_or(true);
             if is_ephemeral {
                 state.storage.delete_document(&doc_id);
@@ -1319,7 +1319,7 @@ async fn convert_document_oneshot(
 
     let effective_pdf_path = rendition.effective_path;
 
-    // 5. Apply dynamic watermark if requested via query param or X-Watermark header
+    // 5. Application dynamique d'un filigrane de sécurité si demandé via query param ou en-tête X-Watermark
     let watermark_text = params.watermark.or_else(|| {
         headers
             .get("X-Watermark")
@@ -1361,7 +1361,7 @@ async fn convert_document_oneshot(
         }
     } else {
         let bytes = std::fs::read(&effective_pdf_path)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         let stem = std::path::Path::new(&filename)
             .file_stem()
             .and_then(|s| s.to_str())
@@ -1369,7 +1369,7 @@ async fn convert_document_oneshot(
         (bytes, format!("{}.pdf", stem))
     };
 
-    // 6. Ephemeral cleanup if requested (default is true for zero-retention privacy)
+    // 6. Purge immédiate si mode éphémère activé (par défaut = true pour garantir le secret des données)
     let is_ephemeral = params.ephemeral.unwrap_or(true);
     if is_ephemeral {
         state.storage.delete_document(&doc_id);

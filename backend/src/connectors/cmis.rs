@@ -133,11 +133,11 @@ impl DocumentConnector for CmisConnector {
         doc_ref: &DocumentReference,
         ctx: &SecurityContext,
     ) -> Result<Option<String>> {
-        // Query child node for document annotations (standard and legacy paths)
+        // Interroge le nœud enfant pour les annotations du document (chemins standard et hérité)
         let object_id = &doc_ref.resource_id;
         let ticket = ctx.auth_token.as_deref();
 
-        // Try standard path first, then legacy path
+        // Essaie d'abord le chemin standard, puis le chemin hérité
         for path_suffix in &["annotations", "arender-annotations"] {
             let annot_child_id = format!("{}/{}", object_id, path_suffix);
             let url = self.build_content_url(&annot_child_id, ticket);

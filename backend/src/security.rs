@@ -2,20 +2,20 @@ use anyhow::{bail, Result};
 use std::net::{IpAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 
-/// Validate document ID to prevent path traversal, command injection, and directory leakage.
-/// Only allows alphanumeric characters, hyphens, and underscores between 1 and 64 characters.
+/// Valide l'identifiant de document pour empêcher la traversée de chemin, l'injection de commandes et la fuite d'arborescence.
+/// Autorise uniquement les caractères alphanumériques, tirets et underscores d'une longueur de 1 à 64 caractères.
 pub fn validate_doc_id(id: &str) -> Result<()> {
     if id.is_empty() || id.len() > 64 {
-        bail!("Invalid document ID length (must be between 1 and 64 characters)");
+        bail!("Longueur d'identifiant de document invalide (doit être comprise entre 1 et 64 caractères)");
     }
     if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-        bail!("Invalid document ID characters (only alphanumeric, '-' and '_' allowed)");
+        bail!("Caractères d'identifiant de document invalides (seuls les caractères alphanumériques, '-' et '_' sont autorisés)");
     }
     Ok(())
 }
 
-/// Sanitize filename by stripping directory path components, null bytes,
-/// control characters, and limiting length.
+/// Assainit le nom de fichier en supprimant les segments de chemin, les octets nuls,
+/// les caractères de contrôle et en tronquant la longueur totale.
 pub fn sanitize_filename(filename: &str) -> String {
     let base = Path::new(filename)
         .file_name()
@@ -27,12 +27,12 @@ pub fn sanitize_filename(filename: &str) -> String {
         .filter(|&c| c != '\0' && c != '/' && c != '\\' && !c.is_control())
         .collect();
 
-    // Prevent "." or ".." or empty filename
+    // Empêche les noms vides, "." ou ".."
     if clean.is_empty() || clean == "." || clean == ".." {
         clean = "document.pdf".to_string();
     }
 
-    // Limit length to 255 chars
+    // Limite la taille maximale du nom à 255 caractères
     if clean.len() > 255 {
         let ext = Path::new(&clean)
             .extension()
@@ -44,7 +44,7 @@ pub fn sanitize_filename(filename: &str) -> String {
     clean
 }
 
-/// Safely truncate string by Unicode scalar count without slicing inside multi-byte codepoints
+/// Tronque une chaîne de caractères de manière sécurisée en comptant les scalaires Unicode sans découper un point de code multi-octets
 pub fn safe_truncate_str(s: &str, max_chars: usize) -> &str {
     match s.char_indices().nth(max_chars) {
         Some((idx, _)) => &s[..idx],
@@ -52,7 +52,7 @@ pub fn safe_truncate_str(s: &str, max_chars: usize) -> &str {
     }
 }
 
-/// Escape XML characters to prevent XML injection & stored XSS in XFDF
+/// Échappe les entités XML pour prévenir l'injection XML et les attaques XSS stockées dans les formulaires XFDF
 pub fn escape_xml_str(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -68,8 +68,8 @@ pub fn escape_xml_str(s: &str) -> String {
     out
 }
 
-/// Escape PDF literal string contents (BT ... (str) Tj ... ET)
-/// Prevents PDF stream injection, postscript breakout, and syntax breakage.
+/// Échappe le contenu des chaînes littérales PDF (opérateurs BT ... (str) Tj ... ET)
+/// Empêche l'injection de flux PostScript/PDF et la corruption syntaxique.
 pub fn escape_pdf_str(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -85,45 +85,45 @@ pub fn escape_pdf_str(s: &str) -> String {
     out
 }
 
-/// Check if an IP address is private, loopback, link-local, or cloud metadata
+/// Vérifie si une adresse IP est privée, de bouclage local, de liaison locale ou réservée aux métadonnées cloud
 pub fn is_private_or_restricted_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ipv4) => {
             let octets = ipv4.octets();
-            // 0.0.0.0/8 (Current network)
+            // 0.0.0.0/8 (Réseau local actuel)
             octets[0] == 0
-                // 10.0.0.0/8 (Private)
+                // 10.0.0.0/8 (Réseau privé classe A)
                 || octets[0] == 10
-                // 127.0.0.0/8 (Loopback)
+                // 127.0.0.0/8 (Bouclage local loopback)
                 || octets[0] == 127
-                // 169.254.0.0/16 (Link-local & AWS/GCP/Azure cloud metadata)
+                // 169.254.0.0/16 (Liaison locale link-local & métadonnées cloud AWS/GCP/Azure)
                 || (octets[0] == 169 && octets[1] == 254)
-                // 172.16.0.0/12 (Private)
+                // 172.16.0.0/12 (Réseau privé classe B)
                 || (octets[0] == 172 && (octets[1] >= 16 && octets[1] <= 31))
-                // 192.168.0.0/16 (Private)
+                // 192.168.0.0/16 (Réseau privé classe C)
                 || (octets[0] == 192 && octets[1] == 168)
-                // 224.0.0.0/4 (Multicast)
+                // 224.0.0.0/4 (Adresses multicast)
                 || octets[0] >= 224
-                // 255.255.255.255 (Broadcast)
+                // 255.255.255.255 (Diffusion broadcast)
                 || ipv4.is_broadcast()
         }
         IpAddr::V6(ipv6) => {
             if let Some(mapped_v4) = ipv6.to_ipv4() {
                 return is_private_or_restricted_ip(IpAddr::V4(mapped_v4));
             }
-            // Loopback ::1, unspecified ::
+            // Loopback ::1, non spécifiée ::
             ipv6.is_loopback()
                 || ipv6.is_unspecified()
                 || ipv6.is_multicast()
-                // Unique Local Addresses (fc00::/7)
+                // Adresses locales uniques ULA (fc00::/7)
                 || (ipv6.segments()[0] & 0xfe00) == 0xfc00
-                // Link Local Unicast (fe80::/10)
+                // Adresses link-local unicast (fe80::/10)
                 || (ipv6.segments()[0] & 0xffc0) == 0xfe80
         }
     }
 }
 
-/// Validate a remote URL to prevent SSRF against internal services, cloud metadata, and loopback.
+/// Valide une URL distante pour prévenir les attaques SSRF vers les services internes, métadonnées cloud et boucle locale.
 pub fn validate_ssrf_url(url_str: &str) -> Result<reqwest::Url> {
     let parsed = reqwest::Url::parse(url_str)?;
     let scheme = parsed.scheme();
@@ -135,7 +135,7 @@ pub fn validate_ssrf_url(url_str: &str) -> Result<reqwest::Url> {
         .host_str()
         .ok_or_else(|| anyhow::anyhow!("URL invalide : hôte manquant"))?;
 
-    // Block localhost names explicitly
+    // Blocage explicite des noms de domaines locaux
     let host_lower = host_str.to_lowercase();
     if host_lower == "localhost"
         || host_lower.ends_with(".localhost")
@@ -145,7 +145,7 @@ pub fn validate_ssrf_url(url_str: &str) -> Result<reqwest::Url> {
         bail!("Accès refusé : l'hôte cible résout vers une adresse locale");
     }
 
-    // Resolve hostname to IP addresses and verify none are private/internal
+    // Résolution DNS de l'hôte et vérification de l'absence d'adresses privées/internes
     let port = parsed.port_or_known_default().unwrap_or(80);
     let socket_addr_str = format!("{}:{}", host_str, port);
     match socket_addr_str.to_socket_addrs() {
@@ -167,7 +167,7 @@ pub fn validate_ssrf_url(url_str: &str) -> Result<reqwest::Url> {
     Ok(parsed)
 }
 
-/// Check and canonicalize safe child path inside a base directory to prevent Path Traversal
+/// Vérifie et canonise un chemin relatif sécurisé dans un répertoire de base (protection Path Traversal)
 pub fn safe_join_path(base_dir: &Path, user_rel_path: &str) -> Result<PathBuf> {
     if user_rel_path.contains("..") || user_rel_path.contains('\0') {
         bail!("Tentative de traversée de chemin détectée");
@@ -176,7 +176,7 @@ pub fn safe_join_path(base_dir: &Path, user_rel_path: &str) -> Result<PathBuf> {
     let clean = user_rel_path.trim_start_matches(|c| c == '/' || c == '\\');
     let target = base_dir.join(clean);
 
-    // If target exists, verify canonical path
+    // Si la cible existe, validation de la canonicité stricte
     if target.exists() {
         let can_base = base_dir.canonicalize()?;
         let can_target = target.canonicalize()?;
@@ -185,7 +185,7 @@ pub fn safe_join_path(base_dir: &Path, user_rel_path: &str) -> Result<PathBuf> {
         }
         Ok(can_target)
     } else {
-        // Parent must be within base_dir
+        // Le répertoire parent doit impérativement résider dans base_dir
         if let Some(parent) = target.parent() {
             if parent.exists() {
                 let can_base = base_dir.canonicalize()?;

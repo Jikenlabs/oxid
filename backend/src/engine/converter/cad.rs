@@ -78,15 +78,15 @@ impl CadConverter {
     pub fn aci_to_hex(aci: i32) -> String {
         let abs_aci = aci.abs();
         match abs_aci {
-            1 => "#FF0000".to_string(), // Red
-            2 => "#FFFF00".to_string(), // Yellow
-            3 => "#00FF00".to_string(), // Green
+            1 => "#FF0000".to_string(), // Rouge
+            2 => "#FFFF00".to_string(), // Jaune
+            3 => "#00FF00".to_string(), // Vert
             4 => "#00FFFF".to_string(), // Cyan
-            5 => "#0066FF".to_string(), // Blue
+            5 => "#0066FF".to_string(), // Bleu
             6 => "#FF00FF".to_string(), // Magenta
-            7 => "#FFFFFF".to_string(), // White / Black
-            8 => "#808080".to_string(), // Dark Gray
-            9 => "#C0C0C0".to_string(), // Light Gray
+            7 => "#FFFFFF".to_string(), // Blanc / Noir
+            8 => "#808080".to_string(), // Gris foncé
+            9 => "#C0C0C0".to_string(), // Gris clair
             10..=19 => "#FF3333".to_string(),
             20..=39 => "#FFA500".to_string(), // Orange
             40..=59 => "#FFD700".to_string(),
@@ -122,7 +122,7 @@ impl CadConverter {
         let mut max_x = f64::MIN;
         let mut max_y = f64::MIN;
 
-        // Default Layer "0"
+        // Calque par défaut "0"
         layers.insert(
             "0".to_string(),
             CadLayer {
@@ -147,7 +147,7 @@ impl CadConverter {
             if code == 0 {
                 match val {
                     "SECTION" => {
-                        // Check section name
+                        // Vérifie le nom de la section
                         if i + 1 < len && lines[i] == "2" {
                             let sec_name = lines[i + 1];
                             in_tables = sec_name == "TABLES";
@@ -170,7 +170,7 @@ impl CadConverter {
                         in_layer_table = false;
                     }
                     "LAYER" if in_layer_table => {
-                        // Read LAYER definition
+                        // Lit la définition du calque (LAYER)
                         let mut name = "Layer".to_string();
                         let mut color_aci = 7;
                         let mut is_visible = true;
@@ -193,7 +193,7 @@ impl CadConverter {
                                 70 => {
                                     if let Ok(f) = item_val.parse::<i32>() {
                                         if (f & 1) != 0 {
-                                            // Frozen
+                                            // Calque gelé (Frozen)
                                             is_visible = false;
                                         }
                                     }
@@ -215,7 +215,7 @@ impl CadConverter {
                         );
                     }
                     entity_type if in_entities => {
-                        // Read an entity
+                        // Lit une entité graphique
                         let mut layer = "0".to_string();
                         let mut entity_color_hex = None;
                         let mut x1 = 0.0;
@@ -291,14 +291,14 @@ impl CadConverter {
                             }
                         }
 
-                        // Layer color lookup
+                        // Recherche de la couleur du calque
                         let layer_color = layers
                             .get(&layer)
                             .map(|l| l.color_hex.clone())
                             .unwrap_or_else(|| "#333333".to_string());
                         let color_hex = entity_color_hex.unwrap_or(layer_color);
 
-                        // Update entity count
+                        // Met à jour le décompte d'entités
                         if let Some(l) = layers.get_mut(&layer) {
                             l.entity_count += 1;
                         } else {
@@ -314,7 +314,7 @@ impl CadConverter {
                             );
                         }
 
-                        // Update bounding box helper
+                        // Fonction utilitaire de mise à jour de la boîte englobante
                         let mut track_pt = |x: f64, y: f64| {
                             if x < min_x { min_x = x; }
                             if x > max_x { max_x = x; }
@@ -399,7 +399,7 @@ impl CadConverter {
             }
         }
 
-        // Handle empty or zero bounds
+        // Gère les dimensions vides ou nulles
         if min_x >= max_x || min_y >= max_y {
             min_x = 0.0;
             min_y = 0.0;
@@ -460,7 +460,7 @@ impl CadConverter {
             canvas_w, canvas_h, canvas_w, canvas_h
         );
 
-        // Group entities by layer
+        // Regroupe les entités par calque
         let mut layer_groups: HashMap<&str, Vec<&CadEntity>> = HashMap::new();
         for entity in &drawing.entities {
             let layer_name = match entity {
@@ -481,7 +481,7 @@ impl CadConverter {
             layer_groups.entry(layer_name).or_default().push(entity);
         }
 
-        // Coordinate transformation: CAD has Y pointing UP, SVG has Y pointing DOWN
+        // Transformation des coordonnées : la CAO a l'axe Y vers le HAUT, le SVG a l'axe Y vers le BAS
         let tx = |x: f64| -> f64 { (x - drawing.min_x + margin) * scale };
         let ty = |y: f64| -> f64 { canvas_h - ((y - drawing.min_y + margin) * scale) };
 
@@ -567,7 +567,7 @@ impl CadConverter {
             svg.push_str("  </g>\n");
         }
 
-        // Stamp and title in bottom corner
+        // Cartouche et titre dans le coin inférieur
         svg.push_str(&format!(
             "  <rect x=\"10\" y=\"{:.2}\" width=\"220\" height=\"35\" fill=\"#2a2a2a\" stroke=\"#444\" rx=\"4\"/>\n",
             canvas_h - 45.0
@@ -602,12 +602,12 @@ impl CadConverter {
         let svg_path = output_path.with_extension("svg");
         let _ = fs::write(&svg_path, &svg_content);
 
-        // Vector PDF generation via lopdf
+        // Génération vectorielle du PDF via lopdf
         let margin = 40.0;
         let w = (drawing.max_x - drawing.min_x).abs() + margin * 2.0;
         let h = (drawing.max_y - drawing.min_y).abs() + margin * 2.0;
 
-        let pdf_w = 842.0; // A4 landscape standard
+        let pdf_w = 842.0; // Format A4 paysage standard
         let pdf_h = 595.0;
 
         let scale_w = (pdf_w - 60.0) / w.max(1.0);
@@ -633,11 +633,11 @@ impl CadConverter {
         });
 
         let mut stream_content = String::new();
-        // Background dark grid style
+        // Style d'arrière-plan sombre type grille CAO
         stream_content.push_str("0.12 0.12 0.12 rg\n");
         stream_content.push_str(&format!("0 0 {:.2} {:.2} re f\n", pdf_w, pdf_h));
 
-        // Render entities
+        // Rend les entités graphiques
         for entity in &drawing.entities {
             let (layer_name, color_hex) = match entity {
                 CadEntity::Line { layer, color_hex, .. }
@@ -654,7 +654,7 @@ impl CadConverter {
                 }
             }
 
-            // Convert hex color to PDF RGB floats
+            // Convertit la couleur hexadécimale en composantes RVB flottantes PDF
             let (r, g, b) = Self::hex_to_rgb(color_hex);
             stream_content.push_str(&format!("{:.3} {:.3} {:.3} RG\n", r, g, b));
             stream_content.push_str("1.0 w 1 J 1 j\n");
@@ -712,7 +712,7 @@ impl CadConverter {
             }
         }
 
-        // Stamp in bottom-right corner
+        // Cartouche dans le coin inférieur droit
         stream_content.push_str("0.18 0.18 0.18 rg\n");
         stream_content.push_str(&format!("{:.2} 15 220 32 re f\n", pdf_w - 235.0));
         stream_content.push_str("0.4 0.4 0.4 RG 1 w\n");

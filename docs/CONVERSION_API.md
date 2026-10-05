@@ -199,3 +199,5 @@ Pour activer et administrer le service de conversion dans votre déploiement :
 | `OXID_AUTH_REQUIRED` | Force l'obligation d'une clé API valide pour convertir | `true` si `OXID_API_KEYS` est défini |
 | `OXID_REDIS_URL` | URL du cluster Redis/Valkey pour les compteurs distribués | `None` (Fallback mémoire local) |
 | `OXID_CONVERT_TTL_SECS` | Délai de purge automatique des fichiers résiduels | `900` (15 minutes) |
+| `OXID_CORS_ALLOWED_ORIGINS` | Origines autorisées pour les requêtes navigateur cross-origin | `*` (Toutes les origines) |
+| `OXID_CORS_ALLOW_CREDENTIALS` | Autorise les requêtes avec cookies/identifiants | `false` si wildcard `*`, sinon `true` |

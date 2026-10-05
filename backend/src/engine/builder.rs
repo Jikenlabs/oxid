@@ -18,14 +18,14 @@ impl DocumentBuilderEngine {
             bail!("No source documents provided");
         }
 
-        // 1. If single document or multiple, start with base
+        // 1. Pour un document unique ou multiple, initialise le fichier de travail
         let temp_dir = tempfile::tempdir()?;
         let working_pdf = temp_dir.path().join("working.pdf");
 
         if source_paths.len() == 1 {
             std::fs::copy(&source_paths[0], &working_pdf)?;
         } else {
-            // Merge sources using pdfunite
+            // Fusionne les sources via l'utilitaire système pdfunite
             let mut cmd = Command::new("pdfunite");
             for p in source_paths {
                 cmd.arg(p);
@@ -38,10 +38,10 @@ impl DocumentBuilderEngine {
             }
         }
 
-        // 2. Open document with lopdf for page actions and watermarks
+        // 2. Ouvre le document avec lopdf pour les actions sur les pages et filigranes
         let mut doc = lopdf::Document::load(&working_pdf)?;
 
-        // Execute PageActions: Deletes and Rotates
+        // Exécute les actions de page : suppressions et rotations
         let mut pages_to_delete: Vec<u32> = Vec::new();
 
         for action in &build_order.page_actions {
@@ -58,7 +58,7 @@ impl DocumentBuilderEngine {
                     }
                 }
                 PageAction::InsertBlank { .. } => {
-                    // Future blank page insertion
+                    // Insertion ultérieure de pages blanches
                 }
             }
         }
@@ -67,12 +67,12 @@ impl DocumentBuilderEngine {
             doc.delete_pages(&pages_to_delete);
         }
 
-        // 3. Apply Watermark if requested
+        // 3. Applique le filigrane (watermark) si demandé
         if let Some(ref wm) = build_order.watermark {
             Self::apply_watermark(&mut doc, wm)?;
         }
 
-        // 4. Save to final output
+        // 4. Enregistre vers le fichier de destination finale
         doc.save(output_path)?;
         info!("Built document saved to {}", output_path.display());
 
@@ -103,14 +103,14 @@ impl DocumentBuilderEngine {
 
         let escaped_text = crate::security::escape_pdf_str(watermark_text);
 
-        // 1. Register Helvetica-Bold Type1 Font in Document
+        // 1. Enregistre la police Type1 Helvetica-Bold dans le document
         let mut font_dict = lopdf::Dictionary::new();
         font_dict.set("Type", "Font");
         font_dict.set("Subtype", "Type1");
         font_dict.set("BaseFont", "Helvetica-Bold");
         let font_id = doc.add_object(Object::Dictionary(font_dict));
 
-        // 2. Register ExtGState for transparency
+        // 2. Enregistre le dictionnaire d'état graphique ExtGState pour la transparence/opacité
         let opacity = if wm.opacity.is_finite() { wm.opacity.clamp(0.05, 1.0) } else { 0.2 };
         let mut gs_dict = lopdf::Dictionary::new();
         gs_dict.set("Type", "ExtGState");
@@ -125,7 +125,7 @@ impl DocumentBuilderEngine {
         let sin = angle_rad.sin();
 
         for (_p_num, &page_id) in pages.iter() {
-            // Register font and extgstate in page resources
+            // Enregistre police et état graphique (ExtGState) dans les ressources de la page
             if let Ok(res_dict) = get_or_create_resources(doc, page_id) {
                 if !res_dict.has(b"Font") {
                     res_dict.set("Font", lopdf::Dictionary::new());
@@ -141,7 +141,7 @@ impl DocumentBuilderEngine {
                 }
             }
 
-            // Get page dimensions
+            // Récupère les dimensions réelles de la page
             let mut page_w = 595.0;
             let mut page_h = 842.0;
             if let Ok(page_dict) = doc.get_object(page_id).and_then(|o| o.as_dict()) {
@@ -200,7 +200,7 @@ fn parse_hex_color(hex: &str) -> (f64, f64, f64) {
             return (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
         }
     }
-    // Default semi-transparent bold red/gray
+    // Teinte rouge/bordeaux par défaut si la couleur hexadécimale est invalide
     (0.85, 0.15, 0.15)
 }
 

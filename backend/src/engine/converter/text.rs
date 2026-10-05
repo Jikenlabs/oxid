@@ -25,7 +25,7 @@ impl TextConverter {
             },
         });
 
-        // Split text into pages of ~50 lines each
+        // Découpe le texte en pages d'environ 50 lignes
         let lines: Vec<&str> = text.lines().collect();
         let lines_per_page = 48;
         let mut page_objects = Vec::new();
@@ -47,7 +47,7 @@ impl TextConverter {
                 y -= 15.0;
             }
 
-            // Footer with page number
+            // Pied de page avec numérotation
             let footer = format!("Page {} / {}", page_idx + 1, total_pages);
             stream_content.push_str(&format!("1 0 0 1 270 30 Tm\n({}) Tj\n", footer));
             stream_content.push_str("ET\n");
@@ -70,7 +70,7 @@ impl TextConverter {
         }
 
         if page_objects.is_empty() {
-            // Empty page fallback
+            // Page blanche de secours si le document est vide
             let page_id = doc.add_object(dictionary! {
                 "Type" => "Page",
                 "Parent" => pages_id,
@@ -151,7 +151,7 @@ impl TextConverter {
         add_file(&mut body, "files", "index.md", &input_bytes);
         add_file(&mut body, "files", "mermaid.min.js", &mermaid_bytes);
 
-        // Add waitForExpression field
+        // Ajoute le champ waitForExpression pour attendre le rendu complet de Mermaid
         body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
         body.extend_from_slice(
             b"Content-Disposition: form-data; name=\"waitForExpression\"\r\n\r\nwindow.mermaidDone === true\r\n",

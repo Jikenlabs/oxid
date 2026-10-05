@@ -196,6 +196,7 @@ services:
       - OXID_DATA_DIR=/data
       - OXID_OFFICE_ENGINE=hybrid
       - OXID_GOTENBERG_URL=http://gotenberg:3000
+      - OXID_CORS_ALLOWED_ORIGINS=*
     volumes:
       - oxid_data:/data
     depends_on:

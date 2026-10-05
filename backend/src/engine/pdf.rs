@@ -26,7 +26,7 @@ impl PdfEngine {
 
         let file_size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
-        // Handle Video formats
+        // Prise en charge des formats vidéo (extraction de poster miniature et métadonnées)
         if crate::engine::converter::FormatConverter::is_video(&rendition.original_format) {
             let (w, h) = if effective_path.exists() && (extension == "jpg" || extension == "jpeg" || extension == "png") {
                 image::image_dimensions(effective_path).unwrap_or((1280, 720))
@@ -61,7 +61,7 @@ impl PdfEngine {
             });
         }
 
-        // Handle Audio formats
+        // Prise en charge des flux audio
         if crate::engine::converter::FormatConverter::is_audio(&rendition.original_format) {
             let mime_type = match rendition.original_format.as_str() {
                 "mp3" => "audio/mpeg",
@@ -151,17 +151,17 @@ impl PdfEngine {
                 let mut page_metas = Vec::with_capacity(pages.len());
 
                 for (page_num, (&_p_num, &page_id)) in pages.iter().enumerate() {
-                    let mut width = 595.0; // A4 default
+                    let mut width = 595.0; // Format A4 par défaut
                     let mut height = 842.0;
                     let mut rotation = 0;
 
                     if let Ok(page_dict) = doc.get_object(page_id).and_then(|o| o.as_dict()) {
-                        // Rotation
+                        // Angle de rotation
                         if let Ok(r) = page_dict.get(b"Rotate").and_then(|o| o.as_i64()) {
                             rotation = r as i32;
                         }
 
-                        // MediaBox or CropBox
+                        // Boîte de découpe CropBox ou boîte physique MediaBox
                         let box_obj = page_dict.get(b"CropBox").or_else(|_| page_dict.get(b"MediaBox"));
                         if let Ok(box_arr) = box_obj.and_then(|o| o.as_array()) {
                             if box_arr.len() == 4 {
@@ -194,7 +194,7 @@ impl PdfEngine {
 
                 let page_count = page_metas.len();
 
-                // Bookmarks / Outlines
+                // Extraction du plan du document (signets / outlines)
                 let bookmarks = Self::extract_outlines(&doc);
 
                 Ok(DocumentMetadata {
@@ -209,7 +209,7 @@ impl PdfEngine {
                 })
             }
             Err(e) => {
-                bail!("Failed to parse PDF document {}: {}", path.display(), e);
+                bail!("Échec d'analyse du document PDF {}: {}", path.display(), e);
             }
         }
     }
@@ -230,7 +230,7 @@ impl PdfEngine {
 
                             bookmarks.push(Bookmark {
                                 title,
-                                page_number: 1, // Default page
+                                page_number: 1, // Page par défaut
                                 children: vec![],
                             });
 
@@ -259,7 +259,7 @@ impl PdfEngine {
             .unwrap_or("")
             .to_lowercase();
 
-        // Image direct handling
+        // Rendu direct des fichiers image matriciels
         if extension == "png"
             || extension == "jpg"
             || extension == "jpeg"
@@ -275,8 +275,8 @@ impl PdfEngine {
                 return Ok(buf.into_inner());
             }
 
-            // Fallback via ImageMagick / convert if available
-            let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+            // Repli via ImageMagick / convert si disponible
+            let temp_dir = tempfile::tempdir().context("Échec de création du répertoire temporaire")?;
             let out_png = temp_dir.path().join("converted.png");
             if let Ok(status) = Command::new("convert")
                 .arg(effective_path)
@@ -288,15 +288,15 @@ impl PdfEngine {
                 }
             }
 
-            // Fallback read raw if already PNG
+            // Repli : lecture brute si déjà PNG
             return Ok(std::fs::read(effective_path)?);
         }
 
-        // PDF rendering via pdftoppm
-        let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+        // Rendu vectoriel de page PDF via pdftoppm
+        let temp_dir = tempfile::tempdir().context("Échec de création du répertoire temporaire")?;
         let output_prefix = temp_dir.path().join("page");
 
-        // Use high-performance JPEG by default (70x faster, 6x lighter than PNG on large complex PDFs)
+        // Utilisation du JPEG haute performance par défaut (70x plus rapide et 6x plus léger que PNG)
         let requested_format = format.unwrap_or("jpeg").to_lowercase();
         let use_png = requested_format == "png";
 
@@ -318,13 +318,13 @@ impl PdfEngine {
             .arg(effective_path)
             .arg(&output_prefix)
             .status()
-            .context("Failed to execute pdftoppm")?;
+            .context("Échec d'exécution de pdftoppm")?;
 
         if !status.success() {
-            bail!("pdftoppm failed with status: {}", status);
+            bail!("pdftoppm a échoué avec le code de sortie : {}", status);
         }
 
-        // Read generated image file
+        // Lecture de l'image matricielle générée
         let mut rendered_bytes = None;
         if let Ok(entries) = std::fs::read_dir(temp_dir.path()) {
             for entry in entries.flatten() {
@@ -336,7 +336,7 @@ impl PdfEngine {
             }
         }
 
-        rendered_bytes.context("Rendered image was not found in temp directory")
+        rendered_bytes.context("L'image rendue est introuvable dans le répertoire temporaire")
     }
 
     pub fn get_page_text(path: &Path, page: usize) -> Result<PageText> {
@@ -358,7 +358,7 @@ impl PdfEngine {
 
         let image_boxes = Self::extract_image_boxes(effective_path, page);
 
-        // Call pdftotext with -bbox-layout
+        // Appel à pdftotext avec l'option de positionnement -bbox-layout
         let output = Command::new("pdftotext")
             .arg("-f")
             .arg(page.to_string())
@@ -380,7 +380,7 @@ impl PdfEngine {
             }
         }
 
-        // Fallback empty text
+        // Repli texte vide
         Ok(PageText {
             page_number: page,
             spans: vec![],
@@ -504,7 +504,7 @@ impl PdfEngine {
             y_max: f64,
         }
 
-        // Split by <line tags to group words by line
+        // Découpage par balises <line pour regrouper les mots par ligne
         for line_chunk in xml_content.split("<line ") {
             if !line_chunk.contains("</line>") {
                 continue;
@@ -541,19 +541,19 @@ impl PdfEngine {
             while i < words.len() {
                 let w_curr = &words[i];
 
-                // Find matching image box for w_curr
+                // Recherche de la boîte d'image correspondante pour w_curr
                 let matched_img = image_boxes.iter().find(|b| {
                     (b.x - w_curr.x_min).abs() < 12.0
                         && (b.top_y - w_curr.y_min).abs() < 25.0
                 });
 
                 if let Some(img) = matched_img {
-                    // Collect words that belong to this image box
+                    // Collecte les mots appartenant à cette boîte d'image
                     let mut j = i;
                     while j + 1 < words.len() {
                         let next_word = &words[j + 1];
 
-                        // If the next word starts a different image box, stop current group
+                        // Si le mot suivant démarre une boîte d'image différente, arrête le groupe actuel
                         let starts_other_img = image_boxes.iter().any(|b2| {
                             (b2.x - img.x).abs() > 2.0
                                 && (b2.x - next_word.x_min).abs() < 8.0
@@ -563,7 +563,7 @@ impl PdfEngine {
                             break;
                         }
 
-                        // Check if next word extends far beyond the image box
+                        // Vérifie si le mot suivant dépasse largement de la boîte d'image
                         if next_word.x_max > img.x + img.width + 15.0 {
                             break;
                         }
@@ -576,7 +576,7 @@ impl PdfEngine {
                     let group_x_max = words[j].x_max;
                     let group_width = (group_x_max - group_x_min).abs();
 
-                    // Account for transparent edge padding in PowerPoint rasterized images
+                    // Prend en compte le rembourrage transparent des bordures dans les images tramées de PowerPoint
                     let trim_factor = if word_count == 1 {
                         0.855
                     } else {
@@ -590,7 +590,7 @@ impl PdfEngine {
                         1.0
                     };
 
-                    // Clamp scale to realistic bounds (never shrink below 1.0, cap at 1.25 to prevent overshooting)
+                    // Limite le facteur d'échelle à des bornes réalistes (ne jamais réduire sous 1.0, plafonner à 1.25 pour éviter les débordements)
                     let scale = if words[i].text.len() <= 1 && word_count == 1 {
                         1.0
                     } else if raw_scale > 1.0 {
@@ -641,7 +641,7 @@ impl PdfEngine {
             }
         }
 
-        // Fallback if no lines were detected
+        // Repli (fallback) si aucune ligne n'a été détectée
         if spans.is_empty() {
             for line in xml_content.lines() {
                 if line.contains("<word ") && line.contains("</word>") {

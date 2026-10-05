@@ -30,7 +30,7 @@ export class TextLayerRenderer {
       const data: PageText = await resp.json();
       this.spans = data.spans;
 
-      // Scale factor between PDF points and actual rendered DOM width
+      // Facteur d'échelle entre les points PDF et la largeur réelle rendue dans le DOM
       this.scale = renderedWidth / pageWidth;
       this.render();
     } catch (e) {
@@ -71,7 +71,7 @@ export class TextLayerRenderer {
       el.style.fontSize = `${fontSize}px`;
       el.style.fontFamily = fontStack;
 
-      // Exact horizontal scaling without hardcoded width to ensure 100% pixel alignment without overflow
+      // Mise à l'échelle horizontale exacte sans largeur fixe pour assurer un alignement parfait au pixel sans débordement
       if (measureCtx && targetW > 0) {
         measureCtx.font = `${fontSize}px ${fontStack}`;
         const measuredW = measureCtx.measureText(span.text).width;

@@ -288,9 +288,15 @@ Pour ajouter la prise en charge d'un nouveau format dans le moteur Rust :
 | `OXID_PORT` | `8080` | Port d'écoute HTTP du serveur. |
 | `OXID_HOST` | `0.0.0.0` | Adresse réseau d'écoute. |
 | `OXID_DATA_DIR` | `./data` | Répertoire de stockage local des documents et du cache L2. |
+| `OXID_CORS_ALLOWED_ORIGINS` | `*` | Origines autorisées pour CORS, séparées par virgule (ex: `https://app.domaine.fr,http://localhost:3000`). |
+| `OXID_CORS_ALLOW_CREDENTIALS` | `false` si `*`, sinon `true` | Autorise l'envoi de cookies et d'en-têtes d'authentification (`Access-Control-Allow-Credentials`). |
+| `OXID_OFFICE_ENGINE` | `hybrid` | Moteur bureautique (`office2pdf`, `gotenberg` ou `hybrid`). |
+| `OXID_GOTENBERG_URL` | *(vide)* | URL de l'instance Gotenberg en cas de mode `gotenberg` ou `hybrid`. |
 | `OXID_REDIS_URL` | *(vide)* | URL de connexion au cache distribué Redis/Valkey (`redis://redis:6379`). |
 | `OXID_CMIS_URL` | *(vide)* | URL du référentiel CMIS (ex: Alfresco). |
-| `RUST_LOG` | `oxidrender=info` | Niveau de verbosité des logs. |
+| `OXID_API_KEYS` | *(vide)* | Liste des clés API et quotas horaires (`cle1:quota,cle2:quota`). |
+| `OXID_AUTH_REQUIRED` | `false` | Impose la présence d'une clé API valide pour accéder à l'API. |
+| `RUST_LOG` | `oxid=info,tower_http=info` | Niveau de verbosité des logs. |
 
 ### Lancer avec Docker Compose
 ```bash

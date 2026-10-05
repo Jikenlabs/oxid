@@ -19,7 +19,7 @@ pub struct DicomDataset {
     pub columns: usize,
     pub bits_allocated: u16,
     pub bits_stored: u16,
-    pub pixel_representation: u16, // 0 = unsigned, 1 = signed
+    pub pixel_representation: u16, // 0 = non signé, 1 = signé
     pub rescale_intercept: f64,
     pub rescale_slope: f64,
     pub window_center: f64,
@@ -77,7 +77,7 @@ impl DicomConverter {
             bail!("Fichier trop court pour être un fichier DICOM valide");
         }
 
-        // Check magic "DICM" at byte offset 128
+        // Vérifie le préambule magique "DICM" à l'octet 128
         let has_magic = &bytes[128..132] == b"DICM";
         let mut offset = if has_magic { 132 } else { 0 };
 
@@ -105,7 +105,7 @@ impl DicomConverter {
             let element = u16::from_le_bytes([bytes[offset + 2], bytes[offset + 3]]);
             offset += 4;
 
-            // Check if Explicit VR (2 ASCII chars e.g. "UI", "CS", "DS", "IS", "OB", "OW")
+            // Vérifie si la représentation de valeur est explicite (Explicit VR : 2 caractères ASCII, ex: "UI", "CS", "OB")
             let vr = &bytes[offset..offset + 2];
             let is_explicit_vr = vr[0].is_ascii_uppercase() && vr[1].is_ascii_uppercase();
 
@@ -113,7 +113,7 @@ impl DicomConverter {
                 offset += 2;
                 match vr {
                     b"OB" | b"OW" | b"OF" | b"SQ" | b"UT" | b"UN" => {
-                        // 2 reserved bytes + 4 bytes length
+                        // 2 octets réservés + 4 octets de longueur
                         offset += 2;
                         if offset + 4 > bytes.len() { break; }
                         let len = u32::from_le_bytes([
@@ -123,7 +123,7 @@ impl DicomConverter {
                         (len, offset)
                     }
                     _ => {
-                        // 2 bytes length
+                        // Longueur sur 2 octets
                         if offset + 2 > bytes.len() { break; }
                         let len = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]) as usize;
                         offset += 2;
@@ -131,7 +131,7 @@ impl DicomConverter {
                     }
                 }
             } else {
-                // Implicit VR: 4 bytes length
+                // VR implicite : longueur sur 4 octets
                 if offset + 4 > bytes.len() { break; }
                 let len = u32::from_le_bytes([
                     bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]
@@ -219,9 +219,9 @@ impl DicomConverter {
                     }
                 }
                 (0x7FE0, 0x0010) => {
-                    // Pixel Data
+                    // Données de pixels (Pixel Data)
                     if length == 0xFFFFFFFF {
-                        // Encapsulated pixel data (e.g. JPEG cine multi-frame)
+                        // Données de pixels encapsulées (ex: ciné-boucle JPEG multi-images)
                         jpeg_frames = Self::extract_jpeg_frames(&bytes[value_offset..]);
                     } else {
                         let pixel_count = rows.saturating_mul(cols);
@@ -256,7 +256,7 @@ impl DicomConverter {
             }
 
             if length == 0xFFFFFFFF {
-                // Undefined length sequence element: search for Sequence Delimitation Item (0xFFFE, 0xE0DD)
+                // Élément de séquence de longueur indéfinie : recherche de l'élément de délimitation (0xFFFE, 0xE0DD)
                 if let Some(delim_idx) = Self::find_sequence_delimiter(&bytes[value_offset..]) {
                     offset = value_offset + delim_idx + 8;
                 } else {
@@ -267,7 +267,7 @@ impl DicomConverter {
             }
         }
 
-        // Synthetic fallback if no pixel data found (generate clinical CT phantom)
+        // Secours synthétique si aucune donnée de pixel n'est trouvée (génère un fantôme CT clinique)
         if raw_pixels.is_empty() && jpeg_frames.is_empty() {
             let safe_rows = rows.min(1024);
             let safe_cols = cols.min(1024);
@@ -314,7 +314,7 @@ impl DicomConverter {
         let mut frames = Vec::new();
         let mut p = 0;
 
-        // Skip Item 0 if it's the Basic Offset Table (BOT)
+        // Ignore l'élément 0 s'il correspond à la table d'offsets (Basic Offset Table / BOT)
         if p + 8 <= slice.len() {
             let tag_g = u16::from_le_bytes([slice[p], slice[p + 1]]);
             let tag_e = u16::from_le_bytes([slice[p + 2], slice[p + 3]]);
@@ -326,7 +326,7 @@ impl DicomConverter {
             }
         }
 
-        // Parse subsequent frame items
+        // Analyse les éléments d'images consécutifs
         while p + 8 <= slice.len() {
             let tag_g = u16::from_le_bytes([slice[p], slice[p + 1]]);
             let tag_e = u16::from_le_bytes([slice[p + 2], slice[p + 3]]);
@@ -356,7 +356,7 @@ impl DicomConverter {
             }
         }
 
-        // Trim trailing padding after EOI (0xFF, 0xD9)
+        // Tronque le bourrage final après le marqueur de fin d'image EOI (0xFF, 0xD9)
         for frame in frames.iter_mut() {
             if let Some(eoi_pos) = frame.windows(2).rposition(|w| w == [0xff, 0xd9]) {
                 frame.truncate(eoi_pos + 2);
@@ -381,20 +381,20 @@ impl DicomConverter {
                 let hu: f64 = if dist > max_r {
                     -1000.0 // Air
                 } else if dist > max_r * 0.94 {
-                    120.0 // Skin / Subcutaneous fat (-80 to 120)
+                    120.0 // Peau / graisse sous-cutanée (-80 à 120 HU)
                 } else if dist > max_r * 0.88 {
-                    900.0 // Skull / Bone (Cranium)
+                    900.0 // Boîte crânienne / Os
                 } else if dist < max_r * 0.3 {
-                    // Ventricles (CSF - Cerebrospinal fluid)
+                    // Ventricules (LCR - Liquide cérébrospinal)
                     15.0
                 } else {
-                    // Brain parenchyma: White & Gray matter (35 to 45 HU)
+                    // Parenchyme cérébral : substance blanche et grise (35 à 45 HU)
                     let angle = dr.atan2(dc);
                     40.0 + (angle * 3.0).sin() * 5.0
                 };
 
-                // Convert HU back to stored pixel: Pixel = (HU - Intercept) / Slope
-                // Assuming Intercept = -1024, Slope = 1.0
+                // Reconvertit les HU en valeur de pixel stockée : Pixel = (HU - Intercept) / Pente
+                // En supposant Intercept = -1024, Pente = 1.0
                 let stored = (hu + 1024.0).round().clamp(0.0, 65535.0);
                 pixels.push(stored);
             }
@@ -427,10 +427,10 @@ impl DicomConverter {
             let x = (idx % cols) as u32;
             let y = (idx / cols) as u32;
 
-            // Compute Hounsfield Unit (HU)
+            // Calcule la valeur en unités Hounsfield (HU)
             let hu = raw_val * slope + intercept;
 
-            // VOI LUT Windowing
+            // Fenêtrage dynamique VOI LUT
             let intensity = if hu <= lower {
                 0u8
             } else if hu >= upper {
@@ -455,7 +455,7 @@ impl DicomConverter {
         let bytes = fs::read(input_path).context("Failed to read DICOM file")?;
         let dataset = Self::parse_dxf_or_dicom(&bytes)?;
 
-        // Save sidecar DICOM metadata
+        // Sauvegarde les métadonnées DICOM complémentaires (sidecar JSON)
         let metadata = DicomMetadata {
             patient_name: dataset.patient_name.clone(),
             patient_id: dataset.patient_id.clone(),
@@ -482,7 +482,7 @@ impl DicomConverter {
             let _ = fs::write(&meta_json_path, json);
         }
 
-        // Generate PDF using lopdf
+        // Génère le document PDF avec lopdf
         let pdf_w = 600.0;
         let pdf_h = 600.0;
 
@@ -531,31 +531,31 @@ impl DicomConverter {
                 });
 
                 let mut stream_content = String::new();
-                // Background black for clinical contrast
+                // Fond noir clinique pour optimiser le contraste radiologique
                 stream_content.push_str("0 0 0 rg\n");
                 stream_content.push_str(&format!("0 0 {:.2} {:.2} re f\n", pdf_w, pdf_h));
 
-                // Draw image full page
+                // Dessine l'image en pleine page
                 stream_content.push_str("q\n");
                 stream_content.push_str(&format!("{:.2} 0 0 {:.2} 0 0 cm\n", pdf_w, pdf_h));
                 stream_content.push_str("/Im1 Do\n");
                 stream_content.push_str("Q\n");
 
-                // Overlay DICOM patient and imaging tags in corners (PACS style)
+                // Incruste les informations patient et DICOM dans les coins (style console PACS)
                 stream_content.push_str("BT\n/F1 10 Tf\n0 0.9 0.4 rg\n");
-                // Top Left: Patient Name & ID
+                // Haut gauche : Nom et identifiant patient
                 stream_content.push_str(&format!("1 0 0 1 15 {:.2} Tm\n({}) Tj\n", pdf_h - 20.0, p_name));
                 stream_content.push_str(&format!("1 0 0 1 15 {:.2} Tm\n({}) Tj\n", pdf_h - 35.0, p_id));
 
-                // Top Right: Modality & Date
+                // Haut droite : Modalité et date de l'examen
                 stream_content.push_str(&format!("1 0 0 1 {:.2} {:.2} Tm\n({}) Tj\n", pdf_w - 140.0, pdf_h - 20.0, modality_str));
                 stream_content.push_str(&format!("1 0 0 1 {:.2} {:.2} Tm\n({}) Tj\n", pdf_w - 140.0, pdf_h - 35.0, date_str));
 
-                // Bottom Left: Frame Index & Levels
+                // Bas gauche : Index de l'image et niveaux de contraste
                 let frame_str = Self::escape_pdf_str(&format!("IMG: {}/{}  WW:{:.0} WL:{:.0}", idx + 1, total_frames, ww, wc));
                 stream_content.push_str(&format!("1 0 0 1 15 20 Tm\n({}) Tj\n", frame_str));
 
-                // Bottom Right: Matrix Resolution
+                // Bas droite : Résolution de la matrice
                 stream_content.push_str(&format!("1 0 0 1 {:.2} 20 Tm\n({}) Tj\n", pdf_w - 100.0, res_str));
                 stream_content.push_str("ET\n");
 
@@ -575,17 +575,17 @@ impl DicomConverter {
                 page_ids.push(page_id.into());
             }
         } else {
-            // Render current windowed grayscale image
+            // Rend l'image en niveaux de gris avec le fenêtrage actuel
             let gray_img = Self::render_image(&dataset, window_center, window_width);
 
-            // Encode to JPEG in-memory
+            // Encode en JPEG en mémoire
             let mut jpeg_bytes = Vec::new();
             let mut cursor = Cursor::new(&mut jpeg_bytes);
             gray_img
                 .write_to(&mut cursor, image::ImageFormat::Jpeg)
                 .context("Failed to encode DICOM image to JPEG")?;
 
-            // Add Image XObject
+            // Ajoute le XObject image au document
             let img_obj_id = doc.add_object(Stream::new(
                 dictionary! {
                     "Type" => "XObject",
@@ -609,31 +609,31 @@ impl DicomConverter {
             });
 
             let mut stream_content = String::new();
-            // Background black for clinical contrast
+            // Fond noir clinique pour optimiser le contraste radiologique
             stream_content.push_str("0 0 0 rg\n");
             stream_content.push_str(&format!("0 0 {:.2} {:.2} re f\n", pdf_w, pdf_h));
 
-            // Draw image full page
+            // Dessine l'image en pleine page
             stream_content.push_str("q\n");
             stream_content.push_str(&format!("{:.2} 0 0 {:.2} 0 0 cm\n", pdf_w, pdf_h));
             stream_content.push_str("/Im1 Do\n");
             stream_content.push_str("Q\n");
 
-            // Overlay DICOM patient and imaging tags in corners (PACS style)
+            // Incruste les informations patient et DICOM dans les coins (style console PACS)
             stream_content.push_str("BT\n/F1 10 Tf\n0 0.9 0.4 rg\n");
-            // Top Left: Patient Name & ID
+            // Haut gauche : Nom et identifiant patient
             stream_content.push_str(&format!("1 0 0 1 15 {:.2} Tm\n({}) Tj\n", pdf_h - 20.0, p_name));
             stream_content.push_str(&format!("1 0 0 1 15 {:.2} Tm\n({}) Tj\n", pdf_h - 35.0, p_id));
 
-            // Top Right: Modality & Date
+            // Haut droite : Modalité et date de l'examen
             stream_content.push_str(&format!("1 0 0 1 {:.2} {:.2} Tm\n({}) Tj\n", pdf_w - 140.0, pdf_h - 20.0, modality_str));
             stream_content.push_str(&format!("1 0 0 1 {:.2} {:.2} Tm\n({}) Tj\n", pdf_w - 140.0, pdf_h - 35.0, date_str));
 
-            // Bottom Left: Windowing Levels (WW / WC)
+            // Bas gauche : Niveaux de fenêtrage (WW / WC)
             let win_str = Self::escape_pdf_str(&format!("WW: {:.0}  WL: {:.0} (HU)", ww, wc));
             stream_content.push_str(&format!("1 0 0 1 15 20 Tm\n({}) Tj\n", win_str));
 
-            // Bottom Right: Matrix Resolution
+            // Bas droite : Résolution de la matrice
             stream_content.push_str(&format!("1 0 0 1 {:.2} 20 Tm\n({}) Tj\n", pdf_w - 100.0, res_str));
             stream_content.push_str("ET\n");
 

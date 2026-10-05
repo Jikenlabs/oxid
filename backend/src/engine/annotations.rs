@@ -83,7 +83,7 @@ impl AnnotationEngine {
                     xml.push_str("    </ink>\n");
                 }
                 _ => {
-                    // Fallback generic annotation
+                    // Annotation générique de secours (tampon)
                     xml.push_str(&format!(
                         "    <stamp page=\"{}\" rect=\"{}\" color=\"{}\" title=\"{}\" date=\"{}\" />\n",
                         page_idx, rect, safe_color, safe_author, safe_date
@@ -165,7 +165,7 @@ impl AnnotationEngine {
                     }
                 }
 
-                // Look ahead for <contents> and closing tag if not self-closing
+                // Recherche anticipée de la balise <contents> et de la fermeture si la balise n'est pas auto-fermante
                 let mut content: Option<String> = None;
                 if !tag_header.ends_with("/>") {
                     let mut j = i + 1;
